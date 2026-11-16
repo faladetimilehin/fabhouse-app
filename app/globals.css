@@ -38,6 +38,11 @@ body {
 .dark .bg-gray-100,
 .dark .bg-gray-200 { background-color: var(--surface-muted) !important; }
 .dark .bg-navy { background-color: #080f1c !important; }
+.dark form.bg-white input {
+  color: #1b2a4a !important;
+  background-color: transparent !important;
+}
+.dark form.bg-white input::placeholder { color: #74829a !important; }
 .dark .text-navy,
 .dark .text-gray-900,
 .dark .text-gray-800,

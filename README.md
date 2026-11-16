@@ -2,6 +2,13 @@
 
 Property listing platform for Nigeria and the diaspora. Built with Next.js 14 (App Router), TypeScript, MongoDB, NextAuth, and Tailwind.
 
+## Screenshots
+
+<p align="center">
+  <img src="public/screenshots/home-light.png" alt="Fabhouse homepage in light mode" width="49%" />
+  <img src="public/screenshots/home-dark.png" alt="Fabhouse homepage in dark mode" width="49%" />
+</p>
+
 ## Getting started
 
 ```bash
