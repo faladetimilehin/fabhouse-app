@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { dbConnect } from "@/lib/mongodb";
 import { authOptions } from "@/lib/auth";
@@ -6,7 +6,7 @@ import Property from "@/models/Property";
 import Inquiry from "@/models/Inquiry";
 import mongoose from "mongoose";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {

@@ -13,7 +13,6 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import toast from "react-hot-toast";
 
 interface School {
   name: string;
@@ -86,7 +85,7 @@ export default function NeighborhoodInsights({
     setError(null);
 
     try {
-      let params = new URLSearchParams();
+      const params = new URLSearchParams();
 
       if (propertyId) {
         params.append("propertyId", propertyId);

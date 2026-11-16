@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Loader2, Bell, Mail, MessageSquare } from "lucide-react";
+import { Loader2, Mail, MessageSquare } from "lucide-react";
 
 interface NotificationPreferences {
   emailOnInquiry: boolean;
@@ -60,7 +60,7 @@ export default function NotificationPreferencesClient() {
       if (!res.ok) throw new Error();
 
       toast.success("Preferences updated!");
-    } catch (err) {
+    } catch {
       toast.error("Failed to save preferences");
     } finally {
       setSaving(false);

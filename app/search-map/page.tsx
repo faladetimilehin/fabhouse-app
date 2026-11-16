@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { Suspense } from "react";
 import MapSearchPage from "@/components/MapSearchPage";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function SearchMapPage() {
-  return <MapSearchPage />;
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading map search…</div>}>
+      <MapSearchPage />
+    </Suspense>
+  );
 }

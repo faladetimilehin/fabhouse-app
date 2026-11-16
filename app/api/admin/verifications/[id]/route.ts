@@ -6,7 +6,8 @@ import User from "@/models/User";
 import { sendEmail } from "@/lib/email";
 import { logAdminAction } from "@/lib/auditLog";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== "admin") {
     return NextResponse.json({ error: "Admins only." }, { status: 403 });
@@ -18,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   await dbConnect();
-  const user = await User.findById(params.id);
+  const user = await User.findById(id);
   if (!user) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
   user.verificationStatus = decision;

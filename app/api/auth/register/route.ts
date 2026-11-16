@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { dbConnect } from "@/lib/mongodb";
 import User from "@/models/User";
-import { sendEmail, welcomeEmail } from "@/lib/email";
+import { sendEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 const registerSchema = z.object({
@@ -15,7 +15,6 @@ const registerSchema = z.object({
     .regex(/[A-Z]/, "Must contain uppercase letter")
     .regex(/[a-z]/, "Must contain lowercase letter")
     .regex(/[0-9]/, "Must contain a number"),
-  role: z.enum(["buyer", "agent", "developer"]).default("buyer"), // Client can suggest, but we override
   phone: z.string().optional(),
   consent: z.literal(true, {
     message: "You must agree to the Privacy Policy and Terms of Service to register.",
@@ -40,7 +39,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { name, email, password, role, phone } = parsed.data;
+    const { name, email, password, phone } = parsed.data;
 
     await dbConnect();
 

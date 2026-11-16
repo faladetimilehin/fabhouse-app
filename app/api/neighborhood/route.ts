@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const state = searchParams.get("state");
     const lga = searchParams.get("lga");
 
-    let query: any = {};
+    const query: any = {};
 
     // Option 1: By property location
     if (propertyId) {
@@ -28,8 +28,8 @@ export async function GET(req: NextRequest) {
           { status: 404 }
         );
       }
-      query.state = property.state;
-      query.lga = property.lga;
+      query.state = property.location.state;
+      query.lga = property.location.city;
     } else if (lat && lng) {
       // Option 2: By coordinates (geospatial)
       const neighborhood = await NeighborhoodData.findOne({

@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import NotificationPreference from "@/models/NotificationPreference";
 import mongoose from "mongoose";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {

@@ -45,7 +45,7 @@ export default function ListingTemplatePicker({
       if (!res.ok) throw new Error();
       const data = await res.json();
       setTemplates(data.templates);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load templates");
     } finally {
       setLoading(false);
@@ -88,7 +88,7 @@ export default function ListingTemplatePicker({
       });
       setShowForm(false);
       fetchTemplates();
-    } catch (err) {
+    } catch {
       toast.error("Failed to create template");
     }
   };
@@ -105,7 +105,7 @@ export default function ListingTemplatePicker({
 
       toast.success("Template deleted");
       fetchTemplates();
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete template");
     }
   };
@@ -122,7 +122,7 @@ export default function ListingTemplatePicker({
 
       toast.success("Default template updated");
       fetchTemplates();
-    } catch (err) {
+    } catch {
       toast.error("Failed to update template");
     }
   };

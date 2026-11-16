@@ -32,26 +32,27 @@ interface SearchParams {
   priceCurrency?: string;
 }
 
-export default async function ListingsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ListingsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
   await dbConnect();
 
   const filter: Record<string, any> = { status: "active" };
-  if (searchParams.type) filter.type = searchParams.type;
-  if (searchParams.purpose) filter.purpose = searchParams.purpose;
-  if (searchParams.state) filter["location.state"] = searchParams.state;
+  if (params.type) filter.type = params.type;
+  if (params.purpose) filter.purpose = params.purpose;
+  if (params.state) filter["location.state"] = params.state;
 
-  const priceCurrency = searchParams.priceCurrency || "NGN";
-  if (searchParams.minPrice || searchParams.maxPrice) {
+  const priceCurrency = params.priceCurrency || "NGN";
+  if (params.minPrice || params.maxPrice) {
     // Every listing stores a priceNGN equivalent (see lib/currency.ts)
     // regardless of its own currency, so a buyer filtering "under £200k"
     // still matches listings priced in NGN or USD.
     filter.priceNGN = {};
-    if (searchParams.minPrice) filter.priceNGN.$gte = convertToNGN(Number(searchParams.minPrice), priceCurrency);
-    if (searchParams.maxPrice) filter.priceNGN.$lte = convertToNGN(Number(searchParams.maxPrice), priceCurrency);
+    if (params.minPrice) filter.priceNGN.$gte = convertToNGN(Number(params.minPrice), priceCurrency);
+    if (params.maxPrice) filter.priceNGN.$lte = convertToNGN(Number(params.maxPrice), priceCurrency);
   }
 
-  if (searchParams.q) {
-    const regex = new RegExp(escapeStringRegexp(searchParams.q.trim()), "i");
+  if (params.q) {
+    const regex = new RegExp(escapeStringRegexp(params.q.trim()), "i");
     filter.$or = [
       { title: regex },
       { description: regex },
@@ -61,7 +62,7 @@ export default async function ListingsPage({ searchParams }: { searchParams: Sea
     ];
   }
 
-  const page = Math.max(1, Number(searchParams.page ?? "1"));
+  const page = Math.max(1, Number(params.page ?? "1"));
   const total = await Property.countDocuments(filter);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -74,16 +75,16 @@ export default async function ListingsPage({ searchParams }: { searchParams: Sea
 
   // Preserve existing filters when building pagination links
   function pageHref(p: number) {
-    const params = new URLSearchParams();
-    if (searchParams.q) params.set("q", searchParams.q);
-    if (searchParams.type) params.set("type", searchParams.type);
-    if (searchParams.purpose) params.set("purpose", searchParams.purpose);
-    if (searchParams.state) params.set("state", searchParams.state);
-    if (searchParams.minPrice) params.set("minPrice", searchParams.minPrice);
-    if (searchParams.maxPrice) params.set("maxPrice", searchParams.maxPrice);
-    if (searchParams.priceCurrency) params.set("priceCurrency", searchParams.priceCurrency);
-    params.set("page", String(p));
-    return `/listings?${params.toString()}`;
+    const search = new URLSearchParams();
+    if (params.q) search.set("q", params.q);
+    if (params.type) search.set("type", params.type);
+    if (params.purpose) search.set("purpose", params.purpose);
+    if (params.state) search.set("state", params.state);
+    if (params.minPrice) search.set("minPrice", params.minPrice);
+    if (params.maxPrice) search.set("maxPrice", params.maxPrice);
+    if (params.priceCurrency) search.set("priceCurrency", params.priceCurrency);
+    search.set("page", String(p));
+    return `/listings?${search.toString()}`;
   }
 
   return (
@@ -96,13 +97,13 @@ export default async function ListingsPage({ searchParams }: { searchParams: Sea
       <form className="flex flex-wrap gap-3 mb-8 bg-white p-4 rounded-lg border border-navy/10">
         <input
           name="q"
-          defaultValue={searchParams.q}
+          defaultValue={params.q}
           placeholder="Search by city, state, or keyword"
           className="flex-1 min-w-[200px] border border-navy/15 rounded-md px-3 py-2 text-sm outline-none focus:border-gold"
         />
         <select
           name="type"
-          defaultValue={searchParams.type ?? ""}
+          defaultValue={params.type ?? ""}
           className="border border-navy/15 rounded-md px-3 py-2 text-sm outline-none focus:border-gold"
         >
           {TYPES.map((t) => (
@@ -111,7 +112,7 @@ export default async function ListingsPage({ searchParams }: { searchParams: Sea
         </select>
         <select
           name="purpose"
-          defaultValue={searchParams.purpose ?? ""}
+          defaultValue={params.purpose ?? ""}
           className="border border-navy/15 rounded-md px-3 py-2 text-sm outline-none focus:border-gold"
         >
           <option value="">Sale or rent</option>
@@ -125,7 +126,7 @@ export default async function ListingsPage({ searchParams }: { searchParams: Sea
             name="minPrice"
             type="number"
             min={0}
-            defaultValue={searchParams.minPrice}
+            defaultValue={params.minPrice}
             placeholder="Min price"
             className="w-24 py-2 text-sm outline-none"
           />
@@ -134,13 +135,13 @@ export default async function ListingsPage({ searchParams }: { searchParams: Sea
             name="maxPrice"
             type="number"
             min={0}
-            defaultValue={searchParams.maxPrice}
+            defaultValue={params.maxPrice}
             placeholder="Max price"
             className="w-24 py-2 text-sm outline-none"
           />
           <select
             name="priceCurrency"
-            defaultValue={searchParams.priceCurrency ?? "NGN"}
+            defaultValue={params.priceCurrency ?? "NGN"}
             className="text-sm outline-none bg-transparent border-l border-navy/10 pl-1.5"
           >
             <option value="NGN">NGN</option>

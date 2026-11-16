@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -12,11 +12,12 @@ import { MapPin, Loader } from "lucide-react";
 
 interface Property {
   _id: string;
+  title?: string;
   address: string;
   price: number;
   bedrooms: number;
   bathrooms: number;
-  coordinates: [number, number]; // [lat, lng]
+  coordinates?: [number, number]; // [lat, lng], absent when a listing has not been geocoded
   type: string;
   purpose: string;
   image?: string;
@@ -43,6 +44,14 @@ export default function EnhancedListingsMap({
 }: EnhancedMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const heatmapRef = useRef<any>(null);
+  const mappedProperties = useMemo(
+    () =>
+      properties.filter(
+        (property): property is Property & { coordinates: [number, number] } =>
+          Boolean(property.coordinates && property.coordinates.length === 2)
+      ),
+    [properties]
+  );
 
   useEffect(() => {
     if (!mapRef.current || !showHeatmap || properties.length === 0) return;
@@ -53,9 +62,7 @@ export default function EnhancedListingsMap({
     }
 
     // Create heatmap data
-    const heatmapData = properties
-      .filter((p) => p.coordinates && p.coordinates.length === 2)
-      .map((p) => [p.coordinates[0], p.coordinates[1], 0.8]);
+    const heatmapData = mappedProperties.map((p) => [p.coordinates[0], p.coordinates[1], 0.8]);
 
     if (heatmapData.length > 0) {
       heatmapRef.current = (L as any).heatLayer(heatmapData, {
@@ -71,7 +78,7 @@ export default function EnhancedListingsMap({
         },
       }).addTo(mapRef.current);
     }
-  }, [properties, showHeatmap]);
+  }, [mappedProperties, showHeatmap]);
 
   const customIcon = L.icon({
     iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
@@ -119,7 +126,7 @@ export default function EnhancedListingsMap({
 
         {showClustering ? (
           <MarkerClusterGroup chunkedLoading>
-            {properties.map((property) => (
+            {mappedProperties.map((property) => (
               <Marker
                 key={property._id}
                 position={property.coordinates}
@@ -163,7 +170,7 @@ export default function EnhancedListingsMap({
             ))}
           </MarkerClusterGroup>
         ) : (
-          properties.map((property) => (
+          mappedProperties.map((property) => (
             <Marker
               key={property._id}
               position={property.coordinates}

@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import EnhancedListingsMap from "@/components/EnhancedListingsMap";
 import SearchFilters from "@/components/SearchFilters";
 import { Loader, Map, List } from "lucide-react";
 import toast from "react-hot-toast";
 
+const EnhancedListingsMap = dynamic(
+  () => import("@/components/EnhancedListingsMap"),
+  { ssr: false, loading: () => <div className="h-[500px] animate-pulse rounded-lg bg-gray-100" /> }
+);
+
 interface Property {
   _id: string;
+  title?: string;
   address: string;
   price: number;
   bedrooms: number;
@@ -16,10 +22,8 @@ interface Property {
   type: string;
   purpose: string;
   images?: string[];
-  location?: {
-    latitude: number;
-    longitude: number;
-  };
+  coordinates?: [number, number];
+  image?: string;
 }
 
 export default function MapSearchPage() {
@@ -47,7 +51,13 @@ export default function MapSearchPage() {
       // Ensure coordinates exist
       const propsWithCoords = data.properties.map((p: any) => ({
         ...p,
-        coordinates: p.location?.coordinates || [6.5244, 3.3792], // Default to Lagos
+        address:
+          p.location?.address ||
+          [p.location?.city, p.location?.state].filter(Boolean).join(", "),
+        coordinates:
+          Number.isFinite(p.location?.lat) && Number.isFinite(p.location?.lng)
+            ? [p.location.lat, p.location.lng]
+            : undefined,
         image: p.images?.[0],
       }));
 
@@ -59,7 +69,7 @@ export default function MapSearchPage() {
     }
   };
 
-  const handlePropertySelect = (property: Property) => {
+  const handlePropertySelect = (property: Pick<Property, "_id">) => {
     window.location.href = `/listings/${property._id}`;
   };
 
@@ -177,7 +187,7 @@ export default function MapSearchPage() {
                     )}
                     <div className="p-4">
                       <h3 className="font-semibold text-gray-900 mb-1">
-                        {property.address}
+                      {property.title || property.address}
                       </h3>
                       <p className="text-2xl font-bold text-blue-600 mb-3">
                         ₦{property.price.toLocaleString()}

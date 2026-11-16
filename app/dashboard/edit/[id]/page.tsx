@@ -7,7 +7,8 @@ import { dbConnect } from "@/lib/mongodb";
 import Property from "@/models/Property";
 import PropertyForm, { PropertyFormValues } from "@/components/PropertyForm";
 
-export default async function EditListingPage({ params }: { params: { id: string } }) {
+export default async function EditListingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
 
@@ -15,7 +16,7 @@ export default async function EditListingPage({ params }: { params: { id: string
 
   let property: any;
   try {
-    property = await Property.findById(params.id).lean();
+    property = await Property.findById(id).lean();
   } catch {
     notFound();
   }

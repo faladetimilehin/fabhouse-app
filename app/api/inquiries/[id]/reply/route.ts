@@ -11,7 +11,8 @@ const schema = z.object({ reply: z.string().min(2) });
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   await dbConnect();
-  const inquiry = await Inquiry.findById(params.id);
+  const inquiry = await Inquiry.findById(id);
   if (!inquiry) return NextResponse.json({ error: "Inquiry not found." }, { status: 404 });
 
   const property = await Property.findById(inquiry.property);

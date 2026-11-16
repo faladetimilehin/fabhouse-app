@@ -8,19 +8,21 @@ import { geocodeAddress } from "@/lib/geocode";
 import { convertToNGN } from "@/lib/currency";
 import { registerImageFingerprints, registerAddressFingerprint, removeListingFingerprints, hashImageUrl, hashAddress } from "@/lib/fingerprint";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await dbConnect();
-  const property = await Property.findById(params.id).populate("owner", "name isVerified phone email");
+  const property = await Property.findById(id).populate("owner", "name isVerified phone email");
   if (!property) return NextResponse.json({ error: "Listing not found." }, { status: 404 });
   return NextResponse.json({ property });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   await dbConnect();
-  const property = await Property.findById(params.id);
+  const property = await Property.findById(id);
   if (!property) return NextResponse.json({ error: "Listing not found." }, { status: 404 });
 
   const isOwner = property.owner.toString() === (session.user as any).id;
@@ -107,19 +109,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
   }
 
-  const updated = await Property.findByIdAndUpdate(params.id, body, { new: true });
+  const updated = await Property.findByIdAndUpdate(id, body, { new: true });
 
   // Update fingerprints after edit (fire-and-forget)
   if (updated) {
     const newImages: string[] = updated.images ?? [];
     const newHashes = newImages.map(hashImageUrl);
-    Property.findByIdAndUpdate(params.id, { imageHashes: newHashes }).catch(() => {});
+    Property.findByIdAndUpdate(id, { imageHashes: newHashes }).catch(() => {});
     registerImageFingerprints(updated._id, newImages).catch(() => {});
 
     const loc = updated.location;
     if (loc.address) {
       const addrHash = hashAddress(loc.address, loc.city, loc.state);
-      Property.findByIdAndUpdate(params.id, { addressHash: addrHash }).catch(() => {});
+      Property.findByIdAndUpdate(id, { addressHash: addrHash }).catch(() => {});
       registerAddressFingerprint(updated._id, loc.address, loc.city, loc.state).catch(() => {});
     }
   }
@@ -127,12 +129,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ property: updated });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   await dbConnect();
-  const property = await Property.findById(params.id);
+  const property = await Property.findById(id);
   if (!property) return NextResponse.json({ error: "Listing not found." }, { status: 404 });
 
   const isOwner = property.owner.toString() === (session.user as any).id;
@@ -147,6 +150,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   await deleteCloudinaryImages(property.images ?? []);
   await deleteCloudinaryVideos(property.videos ?? []);
   await removeListingFingerprints(property._id).catch(() => {});
-  await Property.findByIdAndDelete(params.id);
+  await Property.findByIdAndDelete(id);
   return NextResponse.json({ success: true });
 }

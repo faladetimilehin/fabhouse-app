@@ -14,12 +14,13 @@ import SaveListingButton from "@/components/SaveListingButton";
 import { formatPrice, formatTenure, formatSize, formatReducedDate } from "@/lib/formatting";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
   await dbConnect();
 
   let property: any;
   try {
-    property = await Property.findById(params.id).lean();
+    property = await Property.findById(id).lean();
   } catch {
     return { title: "Listing not found | Fabhouse" };
   }
@@ -48,12 +49,13 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default async function PropertyDetailPage({ params }: { params: { id: string } }) {
+export default async function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await dbConnect();
 
   let property: any;
   try {
-    property = await Property.findById(params.id).populate("owner", "name isVerified phone email").lean();
+    property = await Property.findById(id).populate("owner", "name isVerified phone email").lean();
   } catch {
     notFound();
   }

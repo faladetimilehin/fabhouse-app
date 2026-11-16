@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { dbConnect } from "@/lib/mongodb";
 import Inquiry from "@/models/Inquiry";
 import Property from "@/models/Property";
 import User from "@/models/User";
 import { buildWhatsAppLink, formatPropertyInquiryMessage, isValidNigerianPhone } from "@/lib/whatsapp";
-import mongoose from "mongoose";
 
 /**
  * Send inquiry to agent via WhatsApp link
@@ -23,10 +24,7 @@ export async function GET(req: NextRequest) {
 
     await dbConnect();
 
-    const inquiry = await Inquiry.findById(inquiryId).populate([
-      { path: "property", select: "address price title owner" },
-      { path: "buyer", select: "name phone email" },
-    ]);
+    const inquiry = await Inquiry.findById(inquiryId);
 
     if (!inquiry) {
       return NextResponse.json(
@@ -35,8 +33,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const property = await Property.findById(inquiry.property).select(
+      "owner title price address"
+    );
+    if (!property) {
+      return NextResponse.json(
+        { error: "Property not found" },
+        { status: 404 }
+      );
+    }
+
     // Get agent phone
-    const agent = await User.findById(inquiry.property.owner).select("phone");
+    const agent = await User.findById(property.owner).select("phone");
     
     if (!agent?.phone || !isValidNigerianPhone(agent.phone)) {
       return NextResponse.json(
@@ -46,13 +54,16 @@ export async function GET(req: NextRequest) {
     }
 
     // Format message
+    const propertyAddress =
+      property.location.address ||
+      `${property.location.city}, ${property.location.state}`;
     const message = formatPropertyInquiryMessage(
-      inquiry.property.title || inquiry.property.address,
-      inquiry.property.price,
-      inquiry.property.address,
-      inquiry.buyer.name,
+      property.title || propertyAddress,
+      property.price,
+      propertyAddress,
+      inquiry.buyerName,
       inquiry.message,
-      `${process.env.NEXTAUTH_URL}/listings/${inquiry.property._id}`
+      `${process.env.NEXTAUTH_URL}/listings/${property._id}`
     );
 
     // Build WhatsApp link
@@ -78,6 +89,11 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { inquiryId, responseMessage } = body;
 
@@ -90,11 +106,7 @@ export async function POST(req: NextRequest) {
 
     await dbConnect();
 
-    const inquiry = await Inquiry.findById(inquiryId).populate([
-      { path: "property", select: "title" },
-      { path: "buyer", select: "name phone" },
-      { path: "agent", select: "name phone" },
-    ]);
+    const inquiry = await Inquiry.findById(inquiryId);
 
     if (!inquiry) {
       return NextResponse.json(
@@ -103,8 +115,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const property = await Property.findById(inquiry.property).select(
+      "title owner"
+    );
+    if (!property) {
+      return NextResponse.json(
+        { error: "Property not found" },
+        { status: 404 }
+      );
+    }
+
+    const isAdmin = (session.user as any).role === "admin";
+    if (!isAdmin && property.owner.toString() !== (session.user as any).id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const agent = await User.findById(property.owner).select("name phone");
+    if (!agent) {
+      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    }
+
     // Get buyer phone
-    if (!inquiry.buyer.phone || !isValidNigerianPhone(inquiry.buyer.phone)) {
+    if (!isValidNigerianPhone(inquiry.buyerContact)) {
       return NextResponse.json(
         { error: "Buyer phone number not available or valid" },
         { status: 400 }
@@ -112,10 +144,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Format agent response message
-    const message = `Hi ${inquiry.buyer.name}! ${inquiry.agent.name} replied to your inquiry:\n\n${responseMessage}\n\nCall/WhatsApp: ${inquiry.agent.phone}`;
+    const message = `Hi ${inquiry.buyerName}! ${agent.name} replied to your inquiry about ${property.title}:\n\n${responseMessage}\n\nCall/WhatsApp: ${agent.phone || ""}`;
 
     // Build WhatsApp link
-    const whatsappLink = buildWhatsAppLink(inquiry.buyer.phone, message);
+    const whatsappLink = buildWhatsAppLink(inquiry.buyerContact, message);
 
     return NextResponse.json({
       success: true,

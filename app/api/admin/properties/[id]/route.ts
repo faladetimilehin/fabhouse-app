@@ -8,7 +8,8 @@ import { sendEmail, listingApprovedEmail, listingRejectedEmail } from "@/lib/ema
 import { notifyMatchingSearchAlerts } from "@/lib/searchAlerts";
 import { logAdminAction } from "@/lib/auditLog";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== "admin") {
     return NextResponse.json({ error: "Admins only." }, { status: 403 });
@@ -20,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   await dbConnect();
-  const property = await Property.findByIdAndUpdate(params.id, { status }, { new: true });
+  const property = await Property.findByIdAndUpdate(id, { status }, { new: true });
   if (!property) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const owner = await User.findById(property.owner);

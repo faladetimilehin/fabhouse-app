@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import Providers from "./providers";
@@ -22,17 +22,17 @@ export const metadata: Metadata = {
   description:
     "Find verified houses, flats, land, and commercial property for sale or rent in Nigeria. Built for buyers at home and in the diaspora.",
   manifest: "/manifest.json",
-  themeColor: "#1a3a52",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Fabhouse",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1a3a52",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

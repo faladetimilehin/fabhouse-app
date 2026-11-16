@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { dbConnect } from "@/lib/mongodb";
 import { authOptions } from "@/lib/auth";
 import AgentReview from "@/models/AgentReview";
-import User from "@/models/User";
 import Property from "@/models/Property";
 import mongoose from "mongoose";
 
@@ -27,7 +26,7 @@ export async function GET(req: NextRequest) {
 
     const agent = new mongoose.Types.ObjectId(agentId);
 
-    let query: any = { agent };
+    const query: any = { agent };
 
     if (propertyId) {
       query.property = new mongoose.Types.ObjectId(propertyId);

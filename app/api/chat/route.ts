@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { dbConnect } from "@/lib/mongodb";
 import { authOptions } from "@/lib/auth";
 import { ChatConversation, ChatMessage } from "@/models/Chat";
-import User from "@/models/User";
 import mongoose from "mongoose";
 
 /**
@@ -21,7 +20,6 @@ export async function GET(req: NextRequest) {
 
     const searchParams = req.nextUrl.searchParams;
     const conversationId = searchParams.get("conversationId");
-    const otherUserId = searchParams.get("otherUserId");
 
     if (conversationId) {
       // Get messages in conversation
@@ -70,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { conversationId, otherUserId, propertyId, content, attachments } = body;
+    const { otherUserId, propertyId, content, attachments } = body;
 
     if (!content) {
       return NextResponse.json({ error: "content is required" }, { status: 400 });
@@ -88,7 +86,7 @@ export async function POST(req: NextRequest) {
     if (!conversation) {
       conversation = await ChatConversation.create({
         participants: [senderId, receiverId],
-        unreadCount: new Map(),
+        unreadCount: {},
       });
     }
 

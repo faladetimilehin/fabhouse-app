@@ -36,7 +36,7 @@ export default function ListingExpiryPage() {
 
       const data = await res.json();
       setListings(data.listings);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load listings");
     } finally {
       setLoading(false);
@@ -58,7 +58,7 @@ export default function ListingExpiryPage() {
 
       toast.success("Listing renewed for 30 days");
       fetchListings();
-    } catch (err) {
+    } catch {
       toast.error("Failed to renew listing");
     }
   };

@@ -100,9 +100,8 @@ const PropertySchema = new Schema<IProperty>(
 );
 
 // Auto-generate a short PID on first save (like PropertyPro's 3NLED style)
-PropertySchema.pre("save", function (next) {
+PropertySchema.pre("save", function () {
   if (!this.pid) this.pid = nanoid();
-  next();
 });
 
 PropertySchema.index({ title: "text", description: "text", "location.city": "text", "location.state": "text", "location.address": "text" });

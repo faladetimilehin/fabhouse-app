@@ -4,7 +4,6 @@ import { dbConnect } from "@/lib/mongodb";
 import { authOptions } from "@/lib/auth";
 import Property from "@/models/Property";
 import ListingExpiry from "@/models/ListingExpiry";
-import User from "@/models/User";
 import { sendEmail } from "@/lib/email";
 import mongoose from "mongoose";
 
@@ -24,7 +23,7 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const status = searchParams.get("status"); // "expiring" | "expired" | "active"
 
-    let query: any = { owner: userId };
+    const query: any = { owner: userId };
 
     if (status === "expiring") {
       // Expiring in next 7 days

@@ -211,7 +211,7 @@ export default function VirtualTourViewer({
         />
 
         {/* Hotspots */}
-        {currentPhoto.hotspots?.map((hotspot, idx) => (
+        {currentPhoto.hotspots?.map((hotspot: Hotspot, idx: number) => (
           <button
             key={idx}
             onClick={() => setSelectedHotspot(hotspot)}

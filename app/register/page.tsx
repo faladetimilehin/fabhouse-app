@@ -53,7 +53,6 @@ export default function RegisterPage() {
       return;
     }
 
-    const responseData = await res.json();
     toast.success("Account created! Please check your email to verify your address.");
     router.push("/login");
   }

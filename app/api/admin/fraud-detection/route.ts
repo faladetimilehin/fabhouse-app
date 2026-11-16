@@ -129,6 +129,10 @@ export async function PUT(req: NextRequest) {
 
     await dbConnect();
     const userId = new mongoose.Types.ObjectId((session.user as any).id);
+    const flag = await FraudFlag.findById(flagId);
+    if (!flag) {
+      return NextResponse.json({ error: "Fraud flag not found" }, { status: 404 });
+    }
 
     const updateData: any = {
       status,
@@ -142,7 +146,6 @@ export async function PUT(req: NextRequest) {
 
       // If action is "listing_removed", deactivate property
       if (action === "listing_removed") {
-        const flag = await FraudFlag.findById(flagId);
         await Property.findByIdAndUpdate(flag.property, {
           isActive: false,
           deactivatedReason: "Fraud detected",
@@ -151,7 +154,6 @@ export async function PUT(req: NextRequest) {
 
       // If action is "agent_suspended", mark agent as suspended
       if (action === "agent_suspended") {
-        const flag = await FraudFlag.findById(flagId);
         await User.findByIdAndUpdate(flag.owner, {
           accountStatus: "suspended",
           suspensionReason: "Fraud investigation",

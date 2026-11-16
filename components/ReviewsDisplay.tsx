@@ -151,7 +151,7 @@ export default function ReviewsDisplay({
 
       toast.success("Review deleted");
       fetchReviews();
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete review");
     }
   };

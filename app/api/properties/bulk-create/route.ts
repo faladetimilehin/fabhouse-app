@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 /**
  * Get bulk upload summary/history
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {

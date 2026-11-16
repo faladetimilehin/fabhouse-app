@@ -24,7 +24,8 @@ const STATUS_STYLE: Record<string, string> = {
 
 const PAGE_SIZE = 10;
 
-export default async function DashboardPage({ searchParams }: { searchParams: { page?: string } }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const { page: pageParam } = await searchParams;
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
 
@@ -35,7 +36,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
   const userId = (session.user as any).id;
   const dbUser = await User.findById(userId).lean();
 
-  const page = Math.max(1, Number(searchParams.page ?? "1"));
+  const page = Math.max(1, Number(pageParam ?? "1"));
   const totalListings = await Property.countDocuments({ owner: userId });
   const totalPages = Math.max(1, Math.ceil(totalListings / PAGE_SIZE));
 

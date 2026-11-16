@@ -9,11 +9,12 @@ import PropertyCard from "@/components/PropertyCard";
 import ReviewsDisplay from "@/components/ReviewsDisplay";
 import { BadgeCheck, Phone, Mail, Building2 } from "lucide-react";
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
   await dbConnect();
   let agent: any;
   try {
-    agent = await User.findById(params.id).select("name role").lean();
+    agent = await User.findById(id).select("name role").lean();
   } catch {
     return { title: "Agent not found | Fabhouse" };
   }
@@ -25,22 +26,23 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default async function AgentProfilePage({ params }: { params: { id: string } }) {
+export default async function AgentProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await dbConnect();
 
   let agent: any;
   try {
-    agent = await User.findById(params.id).select("name role isVerified phone email createdAt").lean();
+    agent = await User.findById(id).select("name role isVerified phone email createdAt").lean();
   } catch {
     notFound();
   }
   if (!agent || !["agent", "developer"].includes(agent.role)) notFound();
 
-  const listings = await Property.find({ owner: params.id, status: "active" })
+  const listings = await Property.find({ owner: id, status: "active" })
     .sort({ isFeatured: -1, createdAt: -1 })
     .lean();
 
-  const soldCount = await Property.countDocuments({ owner: params.id, status: { $in: ["sold", "rented"] } });
+  const soldCount = await Property.countDocuments({ owner: id, status: { $in: ["sold", "rented"] } });
   const memberSince = new Date(agent.createdAt).toLocaleDateString("en-GB", { year: "numeric", month: "long" });
 
   return (
@@ -99,7 +101,7 @@ export default async function AgentProfilePage({ params }: { params: { id: strin
       {/* Reviews Section */}
       <div className="mt-12 bg-white rounded-lg border border-navy/10 p-6">
         <h2 className="text-lg font-semibold text-navy mb-6">Agent Reviews & Ratings</h2>
-        <ReviewsDisplay agentId={params.id} />
+        <ReviewsDisplay agentId={id} />
       </div>
     </div>
   );

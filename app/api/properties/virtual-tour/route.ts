@@ -87,7 +87,9 @@ export async function POST(req: NextRequest) {
       title,
       description,
       photos,
-      sequence: sequence || photos.map((_, idx) => ({ photoIndex: idx })),
+      sequence:
+        sequence ||
+        photos.map((_photo: unknown, idx: number) => ({ photoIndex: idx })),
       matterportUrl,
     });
 

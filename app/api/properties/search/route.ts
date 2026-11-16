@@ -2,21 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { dbConnect } from "@/lib/mongodb";
 import Property from "@/models/Property";
 
-interface SearchQuery {
-  q?: string; // keyword search
-  minPrice?: number;
-  maxPrice?: number;
-  bedrooms?: number;
-  bathrooms?: number;
-  type?: string; // house, flat, land, commercial
-  purpose?: string; // sale, rent
-  state?: string;
-  lga?: string;
-  featured?: boolean;
-  page?: number;
-  limit?: number;
-}
-
 export async function GET(req: NextRequest) {
   try {
     await dbConnect();
