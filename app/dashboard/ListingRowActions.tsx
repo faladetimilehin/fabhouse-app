@@ -4,22 +4,24 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Star, Trash2 } from "lucide-react";
 
 interface ListingRowActionsProps {
   id: string;
   title: string;
   status: string;
   purpose: string; // "sale" | "rent" | "shortlet"
+  isFeatured?: boolean;
 }
 
 const OWNER_MANAGEABLE_STATUSES = ["active", "sold", "rented", "archived"];
 
-export default function ListingRowActions({ id, title, status, purpose }: ListingRowActionsProps) {
+export default function ListingRowActions({ id, title, status, purpose, isFeatured = false }: ListingRowActionsProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingFeature, setUpdatingFeature] = useState(false);
 
   const completedLabel = purpose === "rent" ? "Rented" : "Sold";
   const completedValue = purpose === "rent" ? "rented" : "sold";
@@ -67,6 +69,25 @@ export default function ListingRowActions({ id, title, status, purpose }: Listin
     router.refresh();
   }
 
+  async function handleFeatureToggle() {
+    setUpdatingFeature(true);
+    const res = await fetch(`/api/properties/${id}/feature`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ featured: !isFeatured }),
+    });
+    const data = await res.json();
+    setUpdatingFeature(false);
+
+    if (!res.ok) {
+      toast.error(data.error ?? "Couldn't update featured placement.");
+      if (res.status === 402) router.push("/pricing");
+      return;
+    }
+    toast.success(data.isFeatured ? "Listing featured." : "Featured placement removed.");
+    router.refresh();
+  }
+
   return (
     <div className="flex items-center gap-3 justify-end flex-wrap">
       {canManageStatus && (
@@ -80,6 +101,15 @@ export default function ListingRowActions({ id, title, status, purpose }: Listin
           <option value={completedValue}>{completedLabel}</option>
           <option value="archived">Withdrawn</option>
         </select>
+      )}
+      {status === "active" && (
+        <button
+          onClick={handleFeatureToggle}
+          disabled={updatingFeature}
+          className={`flex items-center gap-1 text-sm font-medium disabled:opacity-50 ${isFeatured ? "text-gold-dark" : "text-navy/50 hover:text-gold-dark"}`}
+        >
+          <Star className="w-3.5 h-3.5" /> {updatingFeature ? "Saving..." : isFeatured ? "Featured" : "Feature"}
+        </button>
       )}
       <Link
         href={`/dashboard/edit/${id}`}

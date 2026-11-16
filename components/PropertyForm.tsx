@@ -7,6 +7,7 @@ import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import ImageUploader from "@/components/ImageUploader";
 import VideoUploader from "@/components/VideoUploader";
+import { getMarket, MARKETS } from "@/config/markets";
 
 export interface PropertyFormValues {
   title: string;
@@ -14,6 +15,7 @@ export interface PropertyFormValues {
   type: string;
   purpose: string;
   price: string;
+  pricePeriod: string;
   currency: string;
   priceQualifier: string;
   state: string;
@@ -26,6 +28,7 @@ export interface PropertyFormValues {
   landSize: string;
   tenure: string;
   amenities: string;
+  countryCode: string;
 }
 
 export const emptyPropertyForm: PropertyFormValues = {
@@ -34,6 +37,7 @@ export const emptyPropertyForm: PropertyFormValues = {
   type: "house",
   purpose: "sale",
   price: "",
+  pricePeriod: "year",
   currency: "NGN",
   priceQualifier: "fixed",
   state: "",
@@ -46,6 +50,7 @@ export const emptyPropertyForm: PropertyFormValues = {
   landSize: "",
   tenure: "",
   amenities: "",
+  countryCode: "NG",
 };
 
 interface PropertyFormProps {
@@ -67,7 +72,15 @@ export default function PropertyForm({ mode, propertyId, initialValues, initialI
   const [imageWarnings, setImageWarnings] = useState<string[]>([]);
 
   function set<K extends keyof PropertyFormValues>(key: K, value: string) {
-    setForm((f) => ({ ...f, [key]: value }));
+    setForm((f) => {
+      if (key === "purpose") {
+        return { ...f, purpose: value, pricePeriod: value === "shortlet" ? "night" : "year" };
+      }
+      if (key === "countryCode") {
+        return { ...f, countryCode: value, currency: getMarket(value).currency };
+      }
+      return { ...f, [key]: value };
+    });
   }
 
   async function checkAddressDuplicate() {
@@ -80,6 +93,7 @@ export default function PropertyForm({ mode, propertyId, initialValues, initialI
           address: form.address,
           city: form.city,
           state: form.state,
+          countryCode: form.countryCode,
           excludeListingId: propertyId,
         }),
       });
@@ -131,9 +145,11 @@ export default function PropertyForm({ mode, propertyId, initialValues, initialI
       type: form.type,
       purpose: form.purpose,
       price: Number(form.price),
+      pricePeriod: form.purpose === "sale" ? undefined : form.pricePeriod,
       currency: form.currency,
       priceQualifier: form.priceQualifier,
       location: {
+        countryCode: form.countryCode,
         state: form.state,
         city: form.city,
         address: form.address || undefined,
@@ -266,7 +282,9 @@ export default function PropertyForm({ mode, propertyId, initialValues, initialI
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-navy">Price</label>
+            <label className="text-sm font-medium text-navy">
+              {form.purpose === "sale" ? "Asking price" : `Price per ${form.pricePeriod}`}
+            </label>
             <input
               required
               type="number"
@@ -283,11 +301,33 @@ export default function PropertyForm({ mode, propertyId, initialValues, initialI
               onChange={(e) => set("currency", e.target.value)}
               className="mt-1 w-full border border-navy/15 rounded-md px-3 py-2 outline-none focus:border-gold"
             >
-              <option value="NGN">NGN</option>
-              <option value="GBP">GBP</option>
-              <option value="USD">USD</option>
+              {[...new Set([getMarket(form.countryCode).currency, "GBP", "USD"])].map((currency) => (
+                <option key={currency} value={currency}>{currency}</option>
+              ))}
             </select>
           </div>
+          {form.purpose !== "sale" && (
+            <div>
+              <label className="text-sm font-medium text-navy">Price basis</label>
+              <select
+                value={form.pricePeriod}
+                onChange={(e) => set("pricePeriod", e.target.value)}
+                className="mt-1 w-full border border-navy/15 rounded-md px-3 py-2 outline-none focus:border-gold"
+              >
+                {form.purpose === "shortlet" ? (
+                  <>
+                    <option value="night">Per night</option>
+                    <option value="week">Per week</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="year">Per year</option>
+                    <option value="month">Per month</option>
+                  </>
+                )}
+              </select>
+            </div>
+          )}
         </div>
 
         <div>
@@ -308,7 +348,19 @@ export default function PropertyForm({ mode, propertyId, initialValues, initialI
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-navy">State</label>
+            <label className="text-sm font-medium text-navy">Country</label>
+            <select
+              value={form.countryCode}
+              onChange={(e) => set("countryCode", e.target.value)}
+              className="mt-1 w-full border border-navy/15 rounded-md px-3 py-2 outline-none focus:border-gold"
+            >
+              {MARKETS.map((market) => (
+                <option key={market.code} value={market.code}>{market.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-navy">{getMarket(form.countryCode).regionLabel}</label>
             <input
               required
               value={form.state}

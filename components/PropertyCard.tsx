@@ -1,20 +1,22 @@
 import Link from "next/link";
 import Image from "next/image";
 import { MapPin, BedDouble, Bath, BadgeCheck, Star, TrendingDown, Video } from "lucide-react";
-import { formatPrice, formatReducedDate } from "@/lib/formatting";
+import { formatPrice, formatPricePeriod, formatReducedDate } from "@/lib/formatting";
 import SaveListingButton from "@/components/SaveListingButton";
+import { getMarket } from "@/config/markets";
 
 interface PropertyCardProps {
   property: {
     _id: string;
     title: string;
     price: number;
+    pricePeriod?: string;
     currency: string;
     priceQualifier?: string;
     priceReducedAt?: string;
     type: string;
     purpose: string;
-    location: { city: string; state: string };
+    location: { city: string; state: string; countryCode?: string };
     bedrooms?: number;
     bathrooms?: number;
     images: string[];
@@ -27,6 +29,8 @@ interface PropertyCardProps {
 
 export default function PropertyCard({ property, isSaved }: PropertyCardProps) {
   const reducedDate = formatReducedDate(property.priceReducedAt);
+  const purposeLabel = property.purpose === "shortlet" ? "Short-let" : property.purpose;
+  const countryLabel = getMarket(property.location.countryCode).name;
 
   return (
     <Link
@@ -51,7 +55,7 @@ export default function PropertyCard({ property, isSaved }: PropertyCardProps) {
           </span>
         )}
         <span className="absolute bottom-2 left-2 bg-navy/80 text-white text-xs font-semibold px-2 py-1 rounded capitalize">
-          For {property.purpose}
+          For {purposeLabel}
         </span>
         {property.videos && property.videos.length > 0 && (
           <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1">
@@ -65,7 +69,7 @@ export default function PropertyCard({ property, isSaved }: PropertyCardProps) {
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-bold text-navy text-lg">
             {formatPrice(property.price, property.currency, property.priceQualifier)}
-            {property.purpose === "rent" && <span className="text-sm font-normal text-navy/50">/year</span>}
+            <span className="text-sm font-normal text-navy/50">{formatPricePeriod(property.purpose, property.pricePeriod)}</span>
           </p>
           {reducedDate && (
             <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded">
@@ -75,7 +79,7 @@ export default function PropertyCard({ property, isSaved }: PropertyCardProps) {
         </div>
         <h3 className="font-semibold text-navy mt-1 line-clamp-1">{property.title}</h3>
         <p className="text-sm text-navy/60 flex items-center gap-1 mt-1">
-          <MapPin className="w-3.5 h-3.5" /> {property.location.city}, {property.location.state}
+          <MapPin className="w-3.5 h-3.5" /> {property.location.city}, {property.location.state}{property.location.countryCode && property.location.countryCode !== "NG" ? `, ${countryLabel}` : ""}
         </p>
 
         {(property.bedrooms || property.bathrooms) && (

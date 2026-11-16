@@ -1,3 +1,5 @@
+import { getMarket } from "@/config/markets";
+
 /**
  * Geocodes an address into lat/lng using OpenStreetMap's Nominatim —
  * free, no API key required. Nominatim's usage policy asks for a max of
@@ -12,9 +14,10 @@ export async function geocodeAddress(parts: {
   address?: string;
   city: string;
   state: string;
+  countryCode?: string;
   postcode?: string;
 }): Promise<{ lat: number; lng: number } | null> {
-  const query = [parts.address, parts.city, parts.state, parts.postcode, "Nigeria"]
+  const query = [parts.address, parts.city, parts.state, parts.postcode, getMarket(parts.countryCode).name]
     .filter(Boolean)
     .join(", ");
 

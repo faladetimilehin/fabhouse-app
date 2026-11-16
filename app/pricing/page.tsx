@@ -1,22 +1,18 @@
 "use client";
 
-import { BILLING_ENABLED, PLAN_CATALOG } from "@/config/features";
+import { BILLING_ENABLED, PLAN_CATALOG, getMarketPlanPrice } from "@/config/features";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { getMarket } from "@/config/markets";
+import { formatPrice } from "@/lib/formatting";
 
 export default function PricingPage() {
   const { data: session } = useSession();
-  const [userRole, setUserRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (session?.user) {
-      setUserRole((session.user as any).role);
-    }
-  }, [session]);
-
-  const isAgent = userRole === "agent";
+  const userRole = (session?.user as any)?.role as string | undefined;
+  const currentTier = (session?.user as any)?.planTier as string | undefined;
+  const market = getMarket((session?.user as any)?.countryCode);
+  const canManageListings = userRole === "agent" || userRole === "developer";
   const isLoggedIn = !!session?.user;
 
   return (
@@ -26,7 +22,7 @@ export default function PricingPage() {
         {!BILLING_ENABLED ? (
           <p className="text-navy/60 mt-2 max-w-xl mx-auto">
             Fabhouse is free for everyone during launch — unlimited listings, no card required.
-            Here's what plans will look like once paid tiers are introduced, so there are no surprises later.
+            The current plan prices are starting proposals for Nigeria. Local prices and payment options are not available in other markets yet.
           </p>
         ) : (
           <p className="text-navy/60 mt-2">Choose the plan that fits how much you list.</p>
@@ -45,12 +41,17 @@ export default function PricingPage() {
       <div className="grid md:grid-cols-3 gap-6">
         {(["free", "starter", "professional"] as const).map((tier) => {
           const plan = PLAN_CATALOG[tier];
+          const marketPrice = tier === "free" ? null : getMarketPlanPrice(market.code, tier);
           return (
             <div key={tier} className="bg-white border border-navy/10 rounded-lg p-6 flex flex-col">
               <h3 className="font-bold text-navy text-lg">{plan.label}</h3>
               <p className="text-2xl font-bold text-navy mt-2">
-                {plan.priceMonthlyNGN === 0 ? "Free" : `\u20a6${plan.priceMonthlyNGN.toLocaleString()}`}
-                {plan.priceMonthlyNGN > 0 && <span className="text-sm font-normal text-navy/50">/mo</span>}
+                {tier === "free"
+                  ? "Free"
+                  : !marketPrice
+                    ? "Not available yet"
+                    : formatPrice(marketPrice.amount, marketPrice.currency)}
+                {marketPrice && <span className="text-sm font-normal text-navy/50">/30 days</span>}
               </p>
               <ul className="mt-4 space-y-2 text-sm text-navy/70 flex-1">
                 <li className="flex items-start gap-2">
@@ -67,23 +68,31 @@ export default function PricingPage() {
                 </li>
               </ul>
               
-              {isLoggedIn && isAgent ? (
-                <button
-                  disabled
-                  className="mt-6 text-center bg-navy/50 text-white font-semibold py-2.5 rounded-md cursor-not-allowed opacity-75"
+              {isLoggedIn && canManageListings && tier !== "free" && BILLING_ENABLED && !marketPrice ? (
+                <button disabled className="mt-6 text-center bg-navy/50 text-white font-semibold py-2.5 rounded-md cursor-not-allowed opacity-75">
+                  Plans coming soon in {market.name}
+                </button>
+              ) : isLoggedIn && canManageListings && tier !== "free" && BILLING_ENABLED && currentTier !== tier ? (
+                <Link
+                  href={`/billing/upgrade?tier=${tier}`}
+                  className="mt-6 text-center bg-navy text-white font-semibold py-2.5 rounded-md hover:bg-navy-light transition"
                 >
-                  View plan details
+                  Choose {plan.label}
+                </Link>
+              ) : isLoggedIn && canManageListings ? (
+                <button disabled className="mt-6 text-center bg-navy/50 text-white font-semibold py-2.5 rounded-md cursor-not-allowed opacity-75">
+                  {currentTier === tier && BILLING_ENABLED ? "Current plan" : BILLING_ENABLED ? "Included with your account" : "Free during launch"}
                 </button>
               ) : isLoggedIn ? (
                 <button
                   disabled
                   className="mt-6 text-center bg-navy/50 text-white font-semibold py-2.5 rounded-md cursor-not-allowed opacity-75"
                 >
-                  {BILLING_ENABLED ? "Upgrade your plan" : "Free account active"}
+                  {canManageListings ? (BILLING_ENABLED ? "Upgrade your plan" : "Free account active") : "Agent plans only"}
                 </button>
               ) : (
                 <Link
-                  href={BILLING_ENABLED && plan.priceMonthlyNGN > 0 ? `/billing/upgrade?tier=${tier}` : "/register"}
+                  href="/register"
                   className="mt-6 text-center bg-navy text-white font-semibold py-2.5 rounded-md hover:bg-navy-light transition"
                 >
                   {BILLING_ENABLED ? "Choose plan" : "Get started free"}
@@ -95,6 +104,9 @@ export default function PricingPage() {
       </div>
 
       <div className="text-center mt-10">
+        {BILLING_ENABLED && (
+          <p className="text-navy/60 text-sm mb-4">Each payment gives 30 days of access. Plans do not renew automatically; renew when you choose.</p>
+        )}
         <p className="text-navy/60 text-sm">
           Developer / bulk plans are custom —{" "}
           <a href="mailto:hello@fabhouse.ng" className="text-gold-dark font-semibold hover:underline">

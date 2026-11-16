@@ -1,4 +1,11 @@
-export const CURRENCY_SYMBOL: Record<string, string> = { NGN: "\u20a6", GBP: "\u00a3", USD: "$" };
+export const CURRENCY_SYMBOL: Record<string, string> = {
+  NGN: "\u20a6",
+  GHS: "GH\u20b5",
+  KES: "KSh ",
+  ZAR: "R",
+  GBP: "\u00a3",
+  USD: "$",
+};
 
 const QUALIFIER_PREFIX: Record<string, string> = {
   fixed: "",
@@ -19,6 +26,13 @@ export function formatPrice(price: number, currency: string, qualifier?: string)
   const prefix = qualifier ? QUALIFIER_PREFIX[qualifier] ?? "" : "";
   const suffix = qualifier ? QUALIFIER_SUFFIX[qualifier] ?? "" : "";
   return `${prefix}${symbol}${price.toLocaleString()}${suffix}`;
+}
+
+export function formatPricePeriod(purpose: string, pricePeriod?: string): string | null {
+  if (purpose === "sale") return null;
+  const period = pricePeriod ?? (purpose === "shortlet" ? "night" : "year");
+  const labels: Record<string, string> = { night: "/night", week: "/week", month: "/month", year: "/year" };
+  return labels[period] ?? null;
 }
 
 const TENURE_LABEL: Record<string, string> = {

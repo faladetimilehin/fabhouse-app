@@ -58,7 +58,7 @@ export default function BulkUploadClient() {
         return;
       }
 
-      toast.success(`Successfully created ${data.created} listings`);
+      toast.success(`Submitted ${data.created} listings for review`);
       setResult(data);
       setFile(null);
       if (fileInputRef.current) {
@@ -164,7 +164,7 @@ export default function BulkUploadClient() {
                 <CheckCircle className="text-green-600 flex-shrink-0 mt-1" size={24} />
                 <div>
                   <h3 className="font-semibold text-green-900 mb-2">
-                    Successfully created {result.created} listings
+                    Submitted {result.created} listings for review
                   </h3>
                   <div className="space-y-2 text-sm text-green-800">
                     {result.properties.slice(0, 5).map((prop) => (

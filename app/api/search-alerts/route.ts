@@ -12,6 +12,8 @@ const createSchema = z.object({
     type: z.string().optional(),
     purpose: z.string().optional(),
     state: z.string().optional(),
+    city: z.string().optional(),
+    country: z.string().optional(),
     minPrice: z.number().optional(),
     maxPrice: z.number().optional(),
     priceCurrency: z.string().optional(),

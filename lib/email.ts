@@ -5,6 +5,10 @@ const from = process.env.EMAIL_FROM || "Fabhouse <onboarding@resend.dev>";
 
 const resend = apiKey ? new Resend(apiKey) : null;
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
+}
+
 interface SendEmailArgs {
   to: string;
   subject: string;
@@ -40,34 +44,48 @@ export async function sendEmail({ to, subject, html }: SendEmailArgs) {
 }
 
 export function listingApprovedEmail(listingTitle: string) {
+  const safeTitle = escapeHtml(listingTitle);
   return {
     subject: "Your Fabhouse listing is live",
     html: `
-      <p>Good news — your listing <strong>${listingTitle}</strong> has been approved and is now visible to buyers on Fabhouse.</p>
+      <p>Good news — your listing <strong>${safeTitle}</strong> has been approved and is now visible to buyers on Fabhouse.</p>
       <p>You'll get an email whenever someone inquires about it.</p>
     `,
   };
 }
 
 export function listingRejectedEmail(listingTitle: string, reason?: string) {
+  const safeTitle = escapeHtml(listingTitle);
+  const safeReason = reason ? escapeHtml(reason) : "";
   return {
     subject: "Your Fabhouse listing needs a small fix",
     html: `
-      <p>Your listing <strong>${listingTitle}</strong> wasn't approved yet.</p>
-      ${reason ? `<p>Reason: ${reason}</p>` : ""}
+      <p>Your listing <strong>${safeTitle}</strong> wasn't approved yet.</p>
+      ${safeReason ? `<p>Reason: ${safeReason}</p>` : ""}
       <p>You can edit and resubmit it from your dashboard.</p>
     `,
   };
 }
 
-export function newInquiryEmail(listingTitle: string, buyerName: string, buyerContact: string, message: string) {
+export function newInquiryEmail(
+  listingTitle: string,
+  buyerName: string,
+  buyerContact: string,
+  message: string,
+  stayDetails?: { checkIn: string; checkOut: string; guests: number }
+) {
+  const safeTitle = escapeHtml(listingTitle);
+  const safeName = escapeHtml(buyerName);
+  const safeContact = escapeHtml(buyerContact);
+  const safeMessage = escapeHtml(message).replace(/\n/g, "<br/>");
   return {
-    subject: `New inquiry: ${listingTitle}`,
+    subject: `New inquiry: ${listingTitle.replace(/[\r\n]/g, " ").slice(0, 140)}`,
     html: `
-      <p>You have a new inquiry on <strong>${listingTitle}</strong>.</p>
-      <p><strong>From:</strong> ${buyerName}<br/>
-      <strong>Contact:</strong> ${buyerContact}</p>
-      <p><strong>Message:</strong><br/>${message}</p>
+      <p>You have a new inquiry on <strong>${safeTitle}</strong>.</p>
+      <p><strong>From:</strong> ${safeName}<br/>
+      <strong>Contact:</strong> ${safeContact}</p>
+      ${stayDetails ? `<p><strong>Requested stay:</strong> ${escapeHtml(stayDetails.checkIn)} to ${escapeHtml(stayDetails.checkOut)} · ${stayDetails.guests} guest(s)</p>` : ""}
+      <p><strong>Message:</strong><br/>${safeMessage}</p>
     `,
   };
 }
@@ -77,7 +95,7 @@ export function welcomeEmail(name: string) {
     subject: "Welcome to Fabhouse",
     html: `
       <p>Hi ${name},</p>
-      <p>Welcome to Fabhouse — trusted property listings for Nigeria and the diaspora.</p>
+      <p>Welcome to Fabhouse — discover property across our growing African markets and beyond.</p>
       <p>Everything is free to use during launch. If you're an agent or developer, head to your dashboard to post your first listing.</p>
     `,
   };

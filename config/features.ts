@@ -1,3 +1,5 @@
+import type { MarketCode, MarketCurrency } from "@/config/markets";
+
 /**
  * FABHOUSE FEATURE FLAGS
  * -----------------------------------------------------------------------
@@ -7,11 +9,10 @@
  * TODAY: BILLING_ENABLED is false, so every gated check in lib/billing.ts
  * resolves to "allowed" and users never see a paywall.
  *
- * WHEN YOU'RE READY TO CHARGE:
- * 1. Flip BILLING_ENABLED to true (or set env var NEXT_PUBLIC_BILLING_ENABLED=true)
- * 2. Fill in the Paystack keys in .env.local
- * 3. That's it — every place in the app that calls canPerform() / getPlanLimits()
- *    will start enforcing limits automatically. No other code changes needed.
+ * BILLING GO-LIVE REQUIRES:
+ * 1. Set NEXT_PUBLIC_BILLING_ENABLED=true only after pricing and support are approved.
+ * 2. Configure Paystack keys and POST /api/billing/webhook in the Paystack dashboard.
+ * 3. Verify test payments, webhook signatures, access expiry, and support/refund steps.
  * -----------------------------------------------------------------------
  */
 
@@ -20,13 +21,34 @@ export const BILLING_ENABLED =
 
 // Plan tiers — these mirror the packages in the Fabhouse client proposal.
 export type PlanTier = "free" | "starter" | "professional" | "developer";
+export type PaidPlanTier = "starter" | "professional";
+
+export interface MarketPlanPrice {
+  amount: number;
+  currency: MarketCurrency;
+}
+
+// Only Nigeria has an initial price proposal. Add prices for another market
+// after local agents validate willingness to pay and payment terms.
+export const MARKET_PLAN_PRICES: Record<MarketCode, Partial<Record<PaidPlanTier, MarketPlanPrice>>> = {
+  NG: {
+    starter: { amount: 15_000, currency: "NGN" },
+    professional: { amount: 50_000, currency: "NGN" },
+  },
+  GH: {},
+  KE: {},
+  ZA: {},
+};
+
+export function getMarketPlanPrice(marketCode: string, tier: PaidPlanTier): MarketPlanPrice | null {
+  return MARKET_PLAN_PRICES[marketCode.toUpperCase() as MarketCode]?.[tier] ?? null;
+}
 
 export interface PlanLimits {
   tier: PlanTier;
   label: string;
   maxActiveListings: number; // Infinity = unlimited
   featuredSlots: number;
-  priceMonthlyNGN: number; // 0 while billing is disabled / for the free tier
   diasporaCampaign: boolean;
 }
 
@@ -37,7 +59,6 @@ export const UNRESTRICTED_PLAN: PlanLimits = {
   label: "Free (Launch Period)",
   maxActiveListings: Infinity,
   featuredSlots: Infinity,
-  priceMonthlyNGN: 0,
   diasporaCampaign: true,
 };
 
@@ -48,7 +69,6 @@ export const PLAN_CATALOG: Record<PlanTier, PlanLimits> = {
     label: "Free",
     maxActiveListings: 2,
     featuredSlots: 0,
-    priceMonthlyNGN: 0,
     diasporaCampaign: false,
   },
   starter: {
@@ -56,7 +76,6 @@ export const PLAN_CATALOG: Record<PlanTier, PlanLimits> = {
     label: "Starter",
     maxActiveListings: 5,
     featuredSlots: 0,
-    priceMonthlyNGN: 15000,
     diasporaCampaign: false,
   },
   professional: {
@@ -64,7 +83,6 @@ export const PLAN_CATALOG: Record<PlanTier, PlanLimits> = {
     label: "Professional",
     maxActiveListings: 25,
     featuredSlots: 1,
-    priceMonthlyNGN: 50000,
     diasporaCampaign: true,
   },
   developer: {
@@ -72,7 +90,6 @@ export const PLAN_CATALOG: Record<PlanTier, PlanLimits> = {
     label: "Developer",
     maxActiveListings: Infinity,
     featuredSlots: 5,
-    priceMonthlyNGN: 0, // custom — handled outside self-serve billing
     diasporaCampaign: true,
   },
 };

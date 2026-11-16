@@ -54,7 +54,7 @@ export default async function AgentProfilePage({ params }: { params: Promise<{ i
               <h1 className="text-2xl font-bold text-navy">{agent.name}</h1>
               {agent.isVerified && (
                 <span className="flex items-center gap-1 bg-gold/20 text-gold-dark text-xs font-bold px-2 py-1 rounded-full">
-                  <BadgeCheck className="w-3.5 h-3.5" /> Verified
+                  <BadgeCheck className="w-3.5 h-3.5" /> Identity checked
                 </span>
               )}
             </div>

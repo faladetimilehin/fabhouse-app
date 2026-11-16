@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { BILLING_ENABLED } from "@/config/features";
 import ThemeToggle from "@/components/ThemeToggle";
+import { MARKETS } from "@/config/markets";
 
 const BUY_LINKS = [
   { label: "Houses for Sale", href: "/listings?purpose=sale&type=house" },
@@ -24,10 +25,11 @@ const RENT_LINKS = [
 ];
 
 const SHORTLET_LINKS = [
-  { label: "Shortlets in Lagos", href: "/listings?purpose=shortlet&state=Lagos" },
-  { label: "Shortlets in Abuja", href: "/listings?purpose=shortlet&state=Abuja" },
-  { label: "Shortlets in Lekki", href: "/listings?purpose=shortlet&city=Lekki" },
-  { label: "All Shortlets", href: "/listings?purpose=shortlet" },
+  ...MARKETS.map((market) => ({
+    label: `Shortlets in ${market.name}`,
+    href: `/listings?purpose=shortlet&country=${market.code}`,
+  })),
+  { label: "Shortlets in all markets", href: "/listings?purpose=shortlet&country=all" },
 ];
 
 function NavDropdown({ label, links }: { label: string; links: { label: string; href: string }[] }) {
@@ -89,6 +91,7 @@ export default function Navbar() {
           <NavDropdown label="Rent" links={RENT_LINKS} />
           <NavDropdown label="Shortlet" links={SHORTLET_LINKS} />
           <Link href="/listings" className="hover:text-gold transition">Browse All</Link>
+          <Link href="/search-map" className="hover:text-gold transition">Map Search</Link>
           <Link href="/pricing" className="hover:text-gold transition">Pricing</Link>
           {session?.user && (
             <Link href="/saved" className="hover:text-gold transition">Saved</Link>
@@ -150,6 +153,7 @@ export default function Navbar() {
           {SHORTLET_LINKS.map((l) => <Link key={l.href} href={l.href} onClick={() => setMobileOpen(false)} className="hover:text-gold">{l.label}</Link>)}
           <div className="border-t border-white/10 pt-3 flex flex-col gap-2">
             <Link href="/listings" onClick={() => setMobileOpen(false)} className="hover:text-gold">Browse All</Link>
+            <Link href="/search-map" onClick={() => setMobileOpen(false)} className="hover:text-gold">Map Search</Link>
             <Link href="/pricing" onClick={() => setMobileOpen(false)} className="hover:text-gold">Pricing</Link>
             {session?.user && <Link href="/saved" onClick={() => setMobileOpen(false)} className="hover:text-gold">Saved</Link>}
             {session?.user && ["agent", "developer", "admin"].includes((session.user as any).role) && (

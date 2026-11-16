@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowDownRight, ArrowRight, MapPin, Search, ShieldCheck } from "lucide-react";
+import { MARKETS } from "@/config/markets";
 
 const homeInspiration = [
   { image: "/images/homes/modern-villa.jpg", alt: "Contemporary home framed by a mature shade tree", name: "Room to make your own", type: "Houses", href: "/listings?type=house" },
@@ -19,20 +20,25 @@ export default function HomePage() {
               Home is a feeling. <span className="italic text-[#9a5b3d] dark:text-[#e7ae83]">Let’s find yours.</span>
             </h1>
             <p className="mt-7 max-w-xl text-base leading-7 text-[#58635b] dark:text-[#b6c3d6] sm:text-lg sm:leading-8">
-              Find a place in Nigeria that feels right, with clear details and a direct line to the people who know it best.
+              Find a place that feels right, with clear details and a direct line to the people who know it best. We’re growing across Africa and beyond, market by market.
             </p>
 
             <form action="/listings" className="mt-9 flex max-w-xl flex-col gap-2 rounded-2xl border border-[#e4ded1] bg-white p-2 shadow-[0_18px_55px_-30px_rgba(32,52,47,.38)] dark:border-[#34445e] dark:bg-[#121e32] sm:flex-row sm:items-center">
               <label className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
                 <MapPin className="h-5 w-5 shrink-0 text-[#9a5b3d] dark:text-[#e7ae83]" aria-hidden="true" />
                 <span className="sr-only">Search city, area, or postcode</span>
-                <input name="q" placeholder="Try Lekki, Abuja, or a postcode" className="w-full bg-transparent text-sm text-[#20342f] outline-none placeholder:text-[#92978f] dark:text-[#e6edf7] dark:placeholder:text-[#94a3b8]" />
+                <input name="q" placeholder="Try a city, neighbourhood, or postcode" className="w-full bg-transparent text-sm text-[#20342f] outline-none placeholder:text-[#92978f] dark:text-[#e6edf7] dark:placeholder:text-[#94a3b8]" />
               </label>
+              <label className="sr-only" htmlFor="home-market">Choose a market</label>
+              <select id="home-market" name="country" defaultValue="all" className="rounded-xl border border-[#e4ded1] bg-white px-3 py-3 text-sm text-[#20342f] outline-none focus:border-[#9a5b3d] dark:border-[#34445e] dark:bg-[#121e32] dark:text-[#e6edf7]">
+                <option value="all">All markets</option>
+                {MARKETS.map((market) => <option key={market.code} value={market.code}>{market.name}</option>)}
+              </select>
               <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#9a5b3d] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#7d4730] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9a5b3d]"><Search size={16} aria-hidden="true" />Find a place</button>
             </form>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-[#58635b] dark:text-[#b6c3d6]">
-              <span className="inline-flex items-center gap-2"><ShieldCheck size={17} className="text-[#63816a] dark:text-[#9ac6a1]" />Verified agents</span>
+              <span className="inline-flex items-center gap-2"><ShieldCheck size={17} className="text-[#63816a] dark:text-[#9ac6a1]" />Identity-checked professionals</span>
               <span className="hidden h-1 w-1 rounded-full bg-[#c4bdae] sm:block" />
               <span>Buy, rent, or find a shortlet</span>
             </div>
@@ -51,7 +57,7 @@ export default function HomePage() {
             </div>
             <div className="absolute -left-2 top-10 max-w-[185px] rounded-2xl bg-[#fffdf8] p-4 shadow-xl dark:bg-[#121e32] sm:-left-10 sm:top-16 sm:p-5">
               <p className="font-serif text-3xl text-[#9a5b3d] dark:text-[#e7ae83]">FH</p>
-              <p className="mt-1 text-xs leading-5 text-[#58635b] dark:text-[#b6c3d6]">Built for finding home across Nigeria — and from wherever you are.</p>
+              <p className="mt-1 text-xs leading-5 text-[#58635b] dark:text-[#b6c3d6]">A more human way to find home, wherever life takes you.</p>
             </div>
           </div>
         </div>

@@ -48,6 +48,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           planTier: user.planTier,
+          countryCode: user.countryCode ?? "NG",
         } as any;
       },
     }),
@@ -67,6 +68,7 @@ export const authOptions: NextAuthOptions = {
             isEmailVerified: true,
             consentedToTermsAt: new Date(),
             planTier: "free",
+            countryCode: "NG",
           });
         } else if (existing.isSuspended) {
           return false;
@@ -74,21 +76,28 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
-    async jwt({ token, user, account }) {
-      if (user) {
+    async jwt({ token, user, account, trigger }) {
+      if (user && account?.provider !== "google") {
         token.role = (user as any).role;
         token.planTier = (user as any).planTier;
+        token.countryCode = (user as any).countryCode ?? "NG";
         token.id = (user as any).id;
       }
-      // For OAuth sign-ins, fetch role/id from DB since it's not on the user object
-      if (account?.provider === "google" && !token.id) {
+      // OAuth profile IDs belong to Google; use Fabhouse's database user ID.
+      if (account?.provider === "google") {
         await dbConnect();
         const dbUser = await User.findOne({ email: token.email ?? "" }).lean() as any;
         if (dbUser) {
           token.role = dbUser.role;
           token.planTier = dbUser.planTier;
+          token.countryCode = dbUser.countryCode ?? "NG";
           token.id = dbUser._id.toString();
         }
+      }
+      if (trigger === "update" && token.id) {
+        await dbConnect();
+        const dbUser = await User.findById(token.id).select("countryCode").lean() as any;
+        if (dbUser) token.countryCode = dbUser.countryCode ?? "NG";
       }
       return token;
     },
@@ -96,6 +105,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as any).role = token.role;
         (session.user as any).planTier = token.planTier;
+        (session.user as any).countryCode = token.countryCode ?? "NG";
         (session.user as any).id = token.id;
       }
       return session;

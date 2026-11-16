@@ -14,6 +14,9 @@ const schema = z.object({
   buyerName: z.string().min(2),
   buyerContact: z.string().min(5),
   message: z.string().min(5),
+  checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  guestCount: z.coerce.number().int().min(1).max(20).optional(),
 });
 
 // GET /api/inquiries — inquiries across the signed-in agent's own listings,
@@ -74,17 +77,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { propertyId, buyerName, buyerContact, message } = parsed.data;
+  const { propertyId, buyerName, buyerContact, message, checkIn, checkOut, guestCount } = parsed.data;
 
   await dbConnect();
   const property = await Property.findById(propertyId);
   if (!property) return NextResponse.json({ error: "Listing not found." }, { status: 404 });
+  if (property.status !== "active") return NextResponse.json({ error: "This listing is not available for inquiries." }, { status: 409 });
 
-  await Inquiry.create({ property: propertyId, buyerName, buyerContact, message });
+  let stayDates: { stayCheckIn: Date; stayCheckOut: Date; stayGuestCount: number } | undefined;
+  if (property.purpose === "shortlet") {
+    if (!checkIn || !checkOut || !guestCount) {
+      return NextResponse.json({ error: "Choose check-in, check-out, and guest count for a short-let enquiry." }, { status: 400 });
+    }
+    const stayCheckIn = new Date(`${checkIn}T00:00:00.000Z`);
+    const stayCheckOut = new Date(`${checkOut}T00:00:00.000Z`);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const nights = (stayCheckOut.getTime() - stayCheckIn.getTime()) / 86_400_000;
+    if (
+      stayCheckIn.toISOString().slice(0, 10) !== checkIn ||
+      stayCheckOut.toISOString().slice(0, 10) !== checkOut ||
+      stayCheckIn < today || nights < 1 || nights > 60
+    ) {
+      return NextResponse.json({ error: "Choose future dates for a stay of 1 to 60 nights." }, { status: 400 });
+    }
+    stayDates = { stayCheckIn, stayCheckOut, stayGuestCount: guestCount };
+  } else if (checkIn || checkOut || guestCount !== undefined) {
+    return NextResponse.json({ error: "Stay dates can only be sent for short-let listings." }, { status: 400 });
+  }
+
+  const buyerSession = await getServerSession(authOptions);
+  await Inquiry.create({
+    property: propertyId,
+    buyerUser: (buyerSession?.user as any)?.id,
+    buyerName,
+    buyerContact,
+    message,
+    ...stayDates,
+  });
 
   const owner = await User.findById(property.owner);
   if (owner?.email) {
-    const { subject, html } = newInquiryEmail(property.title, buyerName, buyerContact, message);
+    const { subject, html } = newInquiryEmail(property.title, buyerName, buyerContact, message, stayDates && {
+      checkIn: stayDates.stayCheckIn.toISOString().slice(0, 10),
+      checkOut: stayDates.stayCheckOut.toISOString().slice(0, 10),
+      guests: stayDates.stayGuestCount,
+    });
     sendEmail({ to: owner.email, subject, html }).catch(() => {});
   }
 

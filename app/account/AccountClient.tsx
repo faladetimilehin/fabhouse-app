@@ -1,36 +1,70 @@
 "use client";
 
 import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { Download, ShieldAlert, Loader2, BadgeCheck, Upload } from "lucide-react";
-import ImageUploader from "@/components/ImageUploader";
+import { MARKETS } from "@/config/markets";
 
 interface AccountClientProps {
   name: string;
   email: string;
   role: string;
+  countryCode: string;
   isVerified: boolean;
   verificationStatus: "none" | "pending" | "approved" | "rejected";
   verificationRejectedReason?: string;
+  hasVerificationDocument: boolean;
+  requiresPasswordForDelete: boolean;
 }
 
 export default function AccountClient({
   name,
   email,
   role,
+  countryCode,
   isVerified,
   verificationStatus,
   verificationRejectedReason,
+  hasVerificationDocument,
+  requiresPasswordForDelete,
 }: AccountClientProps) {
+  const { update: updateSession } = useSession();
   const [exporting, setExporting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [password, setPassword] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [docImages, setDocImages] = useState<string[]>([]);
+  const [hasUploadedDocument, setHasUploadedDocument] = useState(hasVerificationDocument);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
   const [submittingDoc, setSubmittingDoc] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(verificationStatus);
+  const [marketCode, setMarketCode] = useState(countryCode);
+  const [savedMarketCode, setSavedMarketCode] = useState(countryCode);
+  const [savingMarket, setSavingMarket] = useState(false);
+
+  async function saveMarket() {
+    setSavingMarket(true);
+    try {
+      const res = await fetch("/api/account/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ countryCode: marketCode }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Couldn't update your market.");
+        return;
+      }
+      setSavedMarketCode(data.countryCode);
+      await updateSession();
+      toast.success("Your market has been updated.");
+    } catch {
+      toast.error("Couldn't reach Fabhouse. Please try again.");
+    } finally {
+      setSavingMarket(false);
+    }
+  }
 
   async function handleExport() {
     setExporting(true);
@@ -53,7 +87,7 @@ export default function AccountClient({
   }
 
   async function handleDelete() {
-    if (!password) {
+    if (requiresPasswordForDelete && !password) {
       toast.error("Enter your password to confirm.");
       return;
     }
@@ -77,7 +111,7 @@ export default function AccountClient({
   }
 
   async function submitVerification() {
-    if (docImages.length === 0) {
+    if (!hasUploadedDocument) {
       toast.error("Upload a photo of your ID or CAC certificate first.");
       return;
     }
@@ -86,7 +120,7 @@ export default function AccountClient({
     const res = await fetch("/api/account/verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentUrl: docImages[0] }),
+      body: JSON.stringify({}),
     });
     const data = await res.json();
     setSubmittingDoc(false);
@@ -100,6 +134,27 @@ export default function AccountClient({
     toast.success("Submitted — we'll review it and email you.");
   }
 
+  async function uploadVerificationDocument(file?: File) {
+    if (!file) return;
+    setUploadingDocument(true);
+    try {
+      const formData = new FormData();
+      formData.append("document", file);
+      const res = await fetch("/api/account/verification/upload", { method: "POST", body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Couldn't securely upload this document.");
+        return;
+      }
+      setHasUploadedDocument(true);
+      toast.success("Document uploaded securely.");
+    } catch {
+      toast.error("Couldn't reach Fabhouse. Please try again.");
+    } finally {
+      setUploadingDocument(false);
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-10">
       <h1 className="text-2xl font-bold text-navy mb-1">Account settings</h1>
@@ -110,6 +165,20 @@ export default function AccountClient({
         <p className="text-sm text-navy/70"><strong>Name:</strong> {name}</p>
         <p className="text-sm text-navy/70"><strong>Email:</strong> {email}</p>
         <p className="text-sm text-navy/70 capitalize"><strong>Role:</strong> {role}</p>
+        <div className="mt-4 border-t border-navy/10 pt-4">
+          <label htmlFor="account-market" className="text-sm font-medium text-navy">Your market</label>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <select id="account-market" value={marketCode} onChange={(event) => setMarketCode(event.target.value)} className="min-w-48 border border-navy/15 rounded-md px-3 py-2 text-sm outline-none focus:border-gold">
+              {MARKETS.map((market) => <option key={market.code} value={market.code}>{market.name}</option>)}
+            </select>
+            {marketCode !== savedMarketCode && (
+              <button onClick={saveMarket} disabled={savingMarket} className="rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-navy-light disabled:opacity-50">
+                {savingMarket ? "Saving..." : "Save market"}
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-navy/50">Used for local listing defaults and market-specific options.</p>
+        </div>
       </div>
 
       {["agent", "developer"].includes(role) && (
@@ -121,7 +190,7 @@ export default function AccountClient({
 
           {isVerified ? (
             <p className="text-sm text-green-700 bg-green-50 rounded-md px-3 py-2 mt-2">
-              You're verified — the badge shows on your listings and profile.
+              Your submitted identity document has been reviewed. This doesn't verify property ownership or guarantee each listing's accuracy.
             </p>
           ) : currentStatus === "pending" ? (
             <p className="text-sm text-navy/60 bg-navy/5 rounded-md px-3 py-2 mt-2">
@@ -131,20 +200,30 @@ export default function AccountClient({
             <>
               <p className="text-sm text-navy/60 mb-3">
                 Upload a photo of your government ID (agents) or CAC certificate (developers) to get the verified
-                badge, which builds trust with buyers who can't meet you in person.
+                badge. This confirms the submitted identity document, not property ownership or the accuracy of every listing.
               </p>
               {currentStatus === "rejected" && verificationRejectedReason && (
                 <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2 mb-3">
                   Previous submission wasn't approved: {verificationRejectedReason}
                 </p>
               )}
-              <ImageUploader images={docImages} onChange={setDocImages} maxImages={1} />
+              <label htmlFor="verification-document" className="block text-sm font-medium text-navy">Identity or business document</label>
+              <input
+                id="verification-document"
+                type="file"
+                accept="image/jpeg,image/png,application/pdf"
+                onChange={(event) => uploadVerificationDocument(event.target.files?.[0])}
+                disabled={uploadingDocument}
+                className="mt-2 block w-full text-sm text-navy/70 file:mr-3 file:rounded-md file:border-0 file:bg-navy file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-navy-light disabled:opacity-50"
+              />
+              <p className="mt-2 text-xs text-navy/50">JPG, PNG or PDF · up to 8 MB. Stored privately, visible to the review team, and deleted after the decision or 30 days if not submitted.</p>
+              {hasUploadedDocument && <p className="mt-2 text-sm font-medium text-green-700">Document uploaded and ready to submit.</p>}
               <button
                 onClick={submitVerification}
-                disabled={submittingDoc}
+                disabled={submittingDoc || uploadingDocument || !hasUploadedDocument}
                 className="mt-3 flex items-center gap-2 bg-navy text-white font-semibold px-4 py-2.5 rounded-md hover:bg-navy-light transition disabled:opacity-50"
               >
-                <Upload className="w-4 h-4" /> {submittingDoc ? "Submitting..." : "Submit for verification"}
+                {uploadingDocument ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} {uploadingDocument ? "Uploading securely..." : submittingDoc ? "Submitting..." : "Submit for review"}
               </button>
             </>
           )}
@@ -154,7 +233,7 @@ export default function AccountClient({
       <div className="bg-white border border-navy/10 rounded-lg p-5 mb-6">
         <h2 className="font-semibold text-navy mb-1">Your data rights</h2>
         <p className="text-sm text-navy/60 mb-4">
-          Under NDPR, you can download a copy of everything we hold about you, any time.
+          You can download a copy of the account data Fabhouse holds about you at any time.
           See our <Link href="/privacy" className="text-gold-dark hover:underline">Privacy Policy</Link> for details.
         </p>
         <button
@@ -172,8 +251,8 @@ export default function AccountClient({
           <ShieldAlert className="w-4 h-4" /> Delete account
         </h2>
         <p className="text-sm text-navy/60 mb-4">
-          This permanently deletes your account, your listings, their photos and videos, and any inquiries received
-          on them. This can't be undone.
+          This permanently deletes your account, your listings and media, your submitted inquiries, saved searches,
+          reviews, stay requests, and related support tickets. This can't be undone.
         </p>
 
         {!showDeleteConfirm ? (
@@ -185,15 +264,19 @@ export default function AccountClient({
           </button>
         ) : (
           <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium text-navy">Confirm your password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full border border-navy/15 rounded-md px-3 py-2 text-sm outline-none focus:border-red-400"
-              />
-            </div>
+            {requiresPasswordForDelete ? (
+              <div>
+                <label className="text-sm font-medium text-navy">Confirm your password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 w-full border border-navy/15 rounded-md px-3 py-2 text-sm outline-none focus:border-red-400"
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-navy/60">Your active Google sign-in session confirms this request.</p>
+            )}
             <div className="flex gap-3">
               <button
                 onClick={handleDelete}

@@ -12,6 +12,7 @@ interface AdminUser {
   email: string;
   role: string;
   isVerified: boolean;
+  verificationStatus: "none" | "pending" | "approved" | "rejected";
   isSuspended: boolean;
   listingCount: number;
   createdAt: string;
@@ -150,19 +151,17 @@ export default function AdminUsersClient({ currentUserId }: { currentUserId: str
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 justify-end flex-wrap">
-                        <button
-                          disabled={busy}
-                          onClick={() =>
-                            updateUser(
-                              u._id,
-                              { isVerified: !u.isVerified },
-                              u.isVerified ? "Verification removed." : "User verified."
-                            )
-                          }
-                          className="text-xs font-medium text-navy/70 hover:text-navy disabled:opacity-50"
-                        >
-                          {u.isVerified ? "Unverify" : "Verify"}
-                        </button>
+                        {u.isVerified ? (
+                          <button
+                            disabled={busy}
+                            onClick={() => updateUser(u._id, { isVerified: false }, "Verification removed.")}
+                            className="text-xs font-medium text-navy/70 hover:text-navy disabled:opacity-50"
+                          >Unverify</button>
+                        ) : u.verificationStatus === "pending" ? (
+                          <Link href="/admin/verifications" className="text-xs font-medium text-gold-dark hover:underline">Review identity</Link>
+                        ) : (
+                          <span className="text-xs text-navy/40">Not verified</span>
+                        )}
                         {isSelf ? (
                           <span className="text-xs text-navy/30">(you)</span>
                         ) : (

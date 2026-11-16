@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import toast from "react-hot-toast";
 import { Loader2, Check, X } from "lucide-react";
 import AdminNav from "../AdminNav";
@@ -11,7 +10,7 @@ interface PendingVerification {
   name: string;
   email: string;
   role: string;
-  verificationDocUrl: string;
+  documentUrl: string | null;
   createdAt: string;
 }
 
@@ -69,8 +68,14 @@ export default function AdminVerificationsClient() {
         <div className="space-y-4">
           {pending.map((p) => (
             <div key={p._id} className="bg-white border border-navy/10 rounded-lg p-4 flex gap-4 items-start flex-wrap">
-              <div className="relative w-32 h-24 bg-navy/5 rounded-md overflow-hidden shrink-0">
-                <Image src={p.verificationDocUrl} alt="Verification document" fill className="object-cover" />
+              <div className="w-32 h-24 bg-navy/5 rounded-md flex items-center justify-center shrink-0">
+                {p.documentUrl ? (
+                  <a href={p.documentUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-gold-dark underline underline-offset-2">
+                    Open document
+                  </a>
+                ) : (
+                  <span className="text-xs text-navy/50">Document unavailable</span>
+                )}
               </div>
               <div className="flex-1 min-w-[180px]">
                 <p className="font-semibold text-navy">{p.name}</p>

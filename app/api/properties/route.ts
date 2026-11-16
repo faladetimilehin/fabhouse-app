@@ -9,6 +9,7 @@ import User from "@/models/User";
 import { canPerform } from "@/lib/billing";
 import { geocodeAddress } from "@/lib/geocode";
 import { convertToNGN } from "@/lib/currency";
+import { getMarket, MARKETS } from "@/config/markets";
 import { registerImageFingerprints, registerAddressFingerprint, hashImageUrl, hashAddress } from "@/lib/fingerprint";
 
 const createSchema = z.object({
@@ -17,9 +18,11 @@ const createSchema = z.object({
   type: z.enum(["house", "flat", "land", "shortlet", "commercial"]),
   purpose: z.enum(["sale", "rent", "shortlet"]),
   price: z.number().positive(),
-  currency: z.enum(["NGN", "GBP", "USD"]).default("NGN"),
+  pricePeriod: z.enum(["night", "week", "month", "year"]).optional(),
+  currency: z.enum(["NGN", "GHS", "KES", "ZAR", "GBP", "USD"]).default("NGN"),
   priceQualifier: z.enum(["fixed", "negotiable", "offers_over", "offers_in_region_of", "guide_price", "poa"]).default("fixed"),
   location: z.object({
+    countryCode: z.enum(MARKETS.map((market) => market.code) as [string, ...string[]]).default("NG"),
     state: z.string().min(2),
     city: z.string().min(2),
     address: z.string().optional(),
@@ -33,6 +36,16 @@ const createSchema = z.object({
   amenities: z.array(z.string()).optional(),
   images: z.array(z.string().url()).optional(),
   videos: z.array(z.string().url()).optional(),
+}).superRefine((value, ctx) => {
+  if (value.purpose === "sale" && value.pricePeriod) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pricePeriod"], message: "Sale listings cannot have a recurring price period." });
+  }
+  if (value.purpose === "shortlet" && !["night", "week"].includes(value.pricePeriod ?? "")) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pricePeriod"], message: "Short-lets must be priced per night or week." });
+  }
+  if (value.purpose === "rent" && !["month", "year"].includes(value.pricePeriod ?? "")) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pricePeriod"], message: "Rentals must be priced per month or year." });
+  }
 });
 
 // GET /api/properties — public search/browse, only returns active listings
@@ -43,24 +56,33 @@ export async function GET(req: NextRequest) {
   const type = searchParams.get("type");
   const purpose = searchParams.get("purpose");
   const state = searchParams.get("state");
+  const countryCode = searchParams.get("country")?.toUpperCase();
   const q = searchParams.get("q");
   const minPrice = searchParams.get("minPrice");
   const maxPrice = searchParams.get("maxPrice");
-  // The currency the min/max price values are expressed in — defaults to
-  // NGN. Converted to NGN before filtering, since every listing's price
-  // is normalized to priceNGN regardless of its own listing currency.
-  const priceCurrency = searchParams.get("priceCurrency") ?? "NGN";
-  const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
-  const pageSize = Math.min(48, Math.max(1, Number(searchParams.get("pageSize") ?? "12")));
-
+  // Price limits are compared only within the selected currency. FX is for
+  // display/search conversion elsewhere, never a transactional price source.
+  const priceCurrency = searchParams.get("priceCurrency") ?? getMarket(countryCode).currency;
   const filter: Record<string, any> = { status: "active" };
   if (type) filter.type = type;
   if (purpose) filter.purpose = purpose;
   if (state) filter["location.state"] = state;
+  if (countryCode && MARKETS.some((market) => market.code === countryCode)) {
+    filter.$and = [
+      ...(filter.$and ?? []),
+      countryCode === "NG"
+        ? { $or: [{ "location.countryCode": "NG" }, { "location.countryCode": { $exists: false } }] }
+        : { "location.countryCode": countryCode },
+    ];
+  }
+  const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
+  const pageSize = Math.min(48, Math.max(1, Number(searchParams.get("pageSize") ?? "12")));
+
   if (minPrice || maxPrice) {
-    filter.priceNGN = {};
-    if (minPrice) filter.priceNGN.$gte = convertToNGN(Number(minPrice), priceCurrency);
-    if (maxPrice) filter.priceNGN.$lte = convertToNGN(Number(maxPrice), priceCurrency);
+    filter.currency = priceCurrency;
+    filter.price = {};
+    if (minPrice && Number.isFinite(Number(minPrice))) filter.price.$gte = Number(minPrice);
+    if (maxPrice && Number.isFinite(Number(maxPrice))) filter.price.$lte = Number(maxPrice);
   }
 
   if (q) {
@@ -69,13 +91,14 @@ export async function GET(req: NextRequest) {
     // requires whole-word stem matches) — "lekk" or "3 bed lagos" will
     // still surface relevant listings instead of returning nothing.
     const regex = new RegExp(escapeStringRegexp(q.trim()), "i");
-    filter.$or = [
+    const keywordFilter = { $or: [
       { title: regex },
       { description: regex },
       { "location.city": regex },
       { "location.state": regex },
       { "location.address": regex },
-    ];
+    ] };
+    filter.$and = [...(filter.$and ?? []), keywordFilter];
   }
 
   const total = await Property.countDocuments(filter);
@@ -147,10 +170,12 @@ export async function POST(req: NextRequest) {
   const property = await Property.create({
     ...parsed.data,
     location,
-    priceNGN: convertToNGN(parsed.data.price, parsed.data.currency),
+    priceNGN: ["NGN", "USD", "GBP"].includes(parsed.data.currency)
+      ? convertToNGN(parsed.data.price, parsed.data.currency)
+      : undefined,
     imageHashes: (parsed.data.images ?? []).map(hashImageUrl),
     addressHash: parsed.data.location.address
-      ? hashAddress(parsed.data.location.address, parsed.data.location.city, parsed.data.location.state)
+      ? hashAddress(parsed.data.location.address, parsed.data.location.city, parsed.data.location.state, parsed.data.location.countryCode)
       : undefined,
     owner: userId,
     status: "pending",
@@ -163,7 +188,8 @@ export async function POST(req: NextRequest) {
       property._id,
       parsed.data.location.address,
       parsed.data.location.city,
-      parsed.data.location.state
+      parsed.data.location.state,
+      parsed.data.location.countryCode
     ).catch(() => {});
   }
 

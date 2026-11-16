@@ -5,6 +5,10 @@ import { authOptions } from "@/lib/auth";
 import Property from "@/models/Property";
 import { parsePropertyCSV, validateCSVFile } from "@/lib/csvParser";
 import mongoose from "mongoose";
+import User from "@/models/User";
+import { canPerform } from "@/lib/billing";
+import { convertToNGN } from "@/lib/currency";
+import { hashAddress, hashImageUrl, registerAddressFingerprint, registerImageFingerprints } from "@/lib/fingerprint";
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,30 +53,63 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (valid.length > 100) {
+      return NextResponse.json({ error: "Upload no more than 100 listings at a time.", errors }, { status: 400 });
+    }
 
     await dbConnect();
     const userId = new mongoose.Types.ObjectId((session.user as any).id);
+    const dbUser = await User.findById(userId);
+    if (!dbUser || dbUser.isSuspended) return NextResponse.json({ error: "Active account required." }, { status: 403 });
 
-    // Create properties in bulk
-    const propertiesToCreate = valid.map((prop) => ({
-      owner: userId,
-      address: prop.address,
-      price: prop.price,
-      bedrooms: prop.bedrooms,
-      bathrooms: prop.bathrooms,
-      type: prop.type,
-      purpose: prop.purpose,
-      description: prop.description || "",
-      state: prop.state || "",
-      lga: prop.lga || "",
-      images: prop.images ? prop.images.split(",").map((u) => u.trim()) : [],
-      amenities: prop.amenities ? prop.amenities.split(",").map((a) => a.trim()) : [],
-      status: "active",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+    const pendingAndActiveCount = await Property.countDocuments({ owner: userId, status: { $in: ["pending", "active"] } });
+    for (let index = 0; index < valid.length; index += 1) {
+      const gate = canPerform({ user: dbUser, activeListingCount: pendingAndActiveCount + index, action: "createListing" });
+      if (!gate.allowed) {
+        return NextResponse.json(
+          { error: `${gate.reason} This upload would exceed your plan limit.`, upgradeSuggested: gate.upgradeSuggested },
+          { status: 402 }
+        );
+      }
+    }
+
+    const propertiesToCreate = valid.map((prop) => {
+      const images = prop.images ? prop.images.split(",").map((url) => url.trim()).filter(Boolean) : [];
+      const title = prop.title?.trim() || `${prop.bedrooms ? `${prop.bedrooms}-bedroom ` : ""}${prop.type} in ${prop.city}`;
+      const description = prop.description?.trim() || `${prop.type} listing in ${prop.city}, ${prop.state}.`;
+      const priceNGN = ["NGN", "USD", "GBP"].includes(prop.currency)
+        ? convertToNGN(prop.price, prop.currency)
+        : undefined;
+      return {
+        title,
+        description,
+        type: prop.type,
+        purpose: prop.purpose,
+        price: prop.price,
+        pricePeriod: prop.pricePeriod,
+        currency: prop.currency,
+        priceNGN,
+        location: { countryCode: prop.countryCode, state: prop.state, city: prop.city, address: prop.address },
+        bedrooms: prop.bedrooms,
+        bathrooms: prop.bathrooms,
+        amenities: prop.amenities ? prop.amenities.split(",").map((item) => item.trim()).filter(Boolean) : [],
+        images,
+        videos: [],
+        imageHashes: images.map(hashImageUrl),
+        addressHash: prop.address ? hashAddress(prop.address, prop.city, prop.state, prop.countryCode) : undefined,
+        owner: userId,
+        status: "pending",
+        isFeatured: false,
+      };
+    });
 
     const created = await Property.insertMany(propertiesToCreate);
+    for (const property of created as any[]) {
+      registerImageFingerprints(property._id, property.images ?? []).catch(() => {});
+      if (property.location?.address) {
+        registerAddressFingerprint(property._id, property.location.address, property.location.city, property.location.state, property.location.countryCode).catch(() => {});
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -80,7 +117,7 @@ export async function POST(req: NextRequest) {
       errors,
       properties: created.map((p: any) => ({
         id: p._id,
-        address: p.address,
+        address: p.location?.address,
         price: p.price,
       })),
     });

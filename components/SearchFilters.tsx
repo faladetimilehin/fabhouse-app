@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, ChevronDown } from "lucide-react";
+import { getMarket, MARKETS } from "@/config/markets";
 
 export default function SearchFilters() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function SearchFilters() {
     type: searchParams.get("type") || "",
     purpose: searchParams.get("purpose") || "sale",
     state: searchParams.get("state") || "",
+    country: searchParams.get("country") || "all",
+    priceCurrency: searchParams.get("priceCurrency") || getMarket(searchParams.get("country")).currency,
     featured: searchParams.get("featured") === "true",
   });
 
@@ -35,9 +38,11 @@ export default function SearchFilters() {
     if (filters.type) params.set("type", filters.type);
     if (filters.purpose) params.set("purpose", filters.purpose);
     if (filters.state) params.set("state", filters.state);
+    if (filters.country) params.set("country", filters.country);
+    if (filters.priceCurrency) params.set("priceCurrency", filters.priceCurrency);
     if (filters.featured) params.set("featured", "true");
 
-    router.push(`/listings?${params.toString()}`);
+    router.push(`/search-map?${params.toString()}`);
   };
 
   const handleReset = () => {
@@ -50,9 +55,11 @@ export default function SearchFilters() {
       type: "",
       purpose: "sale",
       state: "",
+      country: "all",
+      priceCurrency: "NGN",
       featured: false,
     });
-    router.push("/listings");
+    router.push("/search-map");
   };
 
   return (
@@ -112,6 +119,17 @@ export default function SearchFilters() {
               />
               <span className="text-sm text-navy">To Rent</span>
             </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="purpose"
+                value="shortlet"
+                checked={filters.purpose === "shortlet"}
+                onChange={(e) => setFilters({ ...filters, purpose: e.target.value })}
+                className="w-4 h-4"
+              />
+              <span className="text-sm text-navy">Short-let</span>
+            </label>
           </div>
 
           {/* Advanced filters toggle */}
@@ -127,9 +145,20 @@ export default function SearchFilters() {
           {/* Advanced filters */}
           {showAdvanced && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 bg-navy/5 rounded-lg">
+              <div>
+                <label className="text-sm font-semibold text-navy">Market</label>
+                <select
+                  value={filters.country}
+                  onChange={(e) => setFilters({ ...filters, country: e.target.value, priceCurrency: getMarket(e.target.value).currency })}
+                  className="mt-1 w-full border border-navy/15 rounded-md px-3 py-2 outline-none focus:border-gold"
+                >
+                  <option value="all">All markets</option>
+                  {MARKETS.map((market) => <option key={market.code} value={market.code}>{market.name}</option>)}
+                </select>
+              </div>
               {/* Price range */}
               <div>
-                <label className="text-sm font-semibold text-navy">Min Price (₦)</label>
+                <label className="text-sm font-semibold text-navy">Min Price ({filters.priceCurrency})</label>
                 <input
                   type="number"
                   placeholder="0"
@@ -140,7 +169,7 @@ export default function SearchFilters() {
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-navy">Max Price (₦)</label>
+                <label className="text-sm font-semibold text-navy">Max Price ({filters.priceCurrency})</label>
                 <input
                   type="number"
                   placeholder="Unlimited"

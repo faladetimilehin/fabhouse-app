@@ -10,7 +10,7 @@ import User from "@/models/User";
 import Inquiry from "@/models/Inquiry";
 import { getEffectivePlan } from "@/lib/billing";
 import { BILLING_ENABLED } from "@/config/features";
-import { Plus, MessageSquare } from "lucide-react";
+import { Plus, MessageSquare, CalendarDays } from "lucide-react";
 import ListingRowActions from "./ListingRowActions";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -82,6 +82,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Plus className="w-4 h-4" /> New listing
         </Link>
       </div>
+      <Link href="/dashboard/stays" className="mb-5 inline-flex items-center gap-2 rounded-md border border-navy/15 bg-white px-3 py-2 text-sm font-semibold text-navy hover:border-gold">
+        <CalendarDays className="h-4 w-4" /> Short-stay calendar & requests
+      </Link>
 
       {listings.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-lg border border-navy/10">
@@ -135,7 +138,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <ListingRowActions id={id} title={l.title} status={l.status} purpose={l.purpose} />
+                        <ListingRowActions id={id} title={l.title} status={l.status} purpose={l.purpose} isFeatured={l.isFeatured} />
                       </td>
                     </tr>
                   );

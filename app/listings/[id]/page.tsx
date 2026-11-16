@@ -9,10 +9,12 @@ import Property from "@/models/Property";
 import AddressFingerprint from "@/models/AddressFingerprint";
 import { MapPin, BedDouble, Bath, BadgeCheck, Phone, Ruler, FileText, TrendingDown, MessageCircle, ShieldCheck } from "lucide-react";
 import InquiryForm from "@/components/InquiryForm";
+import StayRequestForm from "@/components/StayRequestForm";
 import AffordabilityCalculator from "@/components/AffordabilityCalculator";
 import SaveListingButton from "@/components/SaveListingButton";
-import { formatPrice, formatTenure, formatSize, formatReducedDate } from "@/lib/formatting";
-import { buildWhatsAppLink } from "@/lib/whatsapp";
+import { formatPrice, formatPricePeriod, formatTenure, formatSize, formatReducedDate } from "@/lib/formatting";
+import { buildWhatsAppLink, isValidWhatsAppPhone } from "@/lib/whatsapp";
+import { getMarket } from "@/config/markets";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -71,7 +73,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   const size = formatSize(property.sizeSqFt);
   const tenureLabel = formatTenure(property.tenure);
   const reducedDate = formatReducedDate(property.priceReducedAt);
-  const fullAddress = [property.location.address, property.location.city, property.location.state, property.location.postcode]
+  const fullAddress = [property.location.address, property.location.city, property.location.state, property.location.postcode, getMarket(property.location.countryCode).name]
     .filter(Boolean)
     .join(", ");
 
@@ -205,20 +207,25 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <div className="bg-white border border-navy/10 rounded-lg p-5 sticky top-24">
             <p className="text-2xl font-bold text-navy">
               {formatPrice(property.price, property.currency, property.priceQualifier)}
-              {property.purpose === "rent" && <span className="text-sm font-normal text-navy/50">/year</span>}
+              <span className="text-sm font-normal text-navy/50">{formatPricePeriod(property.purpose, property.pricePeriod)}</span>
             </p>
             {reducedDate && (
               <p className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 rounded px-2 py-1 mt-1 w-fit">
                 <TrendingDown className="w-3 h-3" /> Reduced on {reducedDate}
               </p>
             )}
-            <p className="text-sm text-navy/50 capitalize mt-1">For {property.purpose}</p>
+            <p className="text-sm text-navy/50 capitalize mt-1">For {property.purpose === "shortlet" ? "short-let" : property.purpose}</p>
+            {property.purpose === "shortlet" && property.reviewEvidence?.checkedAt && (
+              <p className="mt-2 rounded bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                Fabhouse completed the listed short-stay checks on {new Date(property.reviewEvidence.checkedAt).toLocaleDateString()}. This is not a property-title guarantee or inspection certificate.
+              </p>
+            )}
 
-            {/* Verified listing badge — shown when owner is verified */}
+            {/* Identity review does not verify property ownership or title. */}
             {property.owner?.isVerified && (
               <div className="flex items-center gap-2 mt-3 bg-green-50 border border-green-200 rounded-md px-3 py-2">
                 <ShieldCheck className="w-4 h-4 text-green-600 shrink-0" />
-                <span className="text-xs font-semibold text-green-700">Property listed by a verified agent</span>
+                <span className="text-xs font-semibold text-green-700">Contact identity checked by Fabhouse</span>
               </div>
             )}
 
@@ -248,17 +255,20 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     {property.owner?.name ?? "Fabhouse Agent"}
                   </p>
                 )}
-                {property.owner?.phone && (
+                {property.owner?.phone && isValidWhatsAppPhone(property.owner.phone, property.location.countryCode ?? "NG") && (
                   <a
                     href={buildWhatsAppLink(
                       property.owner.phone,
-                      `Hi, I'm interested in "${property.title}" on Fabhouse. Is it still available?`
+                      property.purpose === "shortlet"
+                        ? `Hi, I'm interested in "${property.title}" on Fabhouse. Do you have availability for my dates?`
+                        : `Hi, I'm interested in "${property.title}" on Fabhouse. Is it still available?`,
+                      property.location.countryCode ?? "NG"
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 flex items-center justify-center gap-2 bg-[#25D366] text-white font-semibold py-2.5 rounded-md hover:bg-[#1fb958] transition"
                   >
-                    <MessageCircle className="w-4 h-4" /> Message on WhatsApp
+                    <MessageCircle className="w-4 h-4" /> {property.purpose === "shortlet" ? "Ask about dates on WhatsApp" : "Message on WhatsApp"}
                   </a>
                 )}
                 {property.owner?.phone && (
@@ -276,7 +286,11 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   Email agent directly
                 </a>
 
-                <InquiryForm propertyId={property._id.toString()} />
+                {property.purpose === "shortlet" ? property.reviewEvidence?.checkedAt ? (
+                  <StayRequestForm propertyId={property._id.toString()} />
+                ) : (
+                  <><p className="mt-4 rounded bg-amber-50 p-3 text-xs text-amber-900">Date requests are paused while Fabhouse completes this short-stay listing review. Contact the host directly to ask about availability.</p><InquiryForm propertyId={property._id.toString()} isShortlet /></>
+                ) : <InquiryForm propertyId={property._id.toString()} />}
               </div>
             )}
           </div>

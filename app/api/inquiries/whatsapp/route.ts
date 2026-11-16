@@ -5,7 +5,7 @@ import { dbConnect } from "@/lib/mongodb";
 import Inquiry from "@/models/Inquiry";
 import Property from "@/models/Property";
 import User from "@/models/User";
-import { buildWhatsAppLink, formatPropertyInquiryMessage, isValidNigerianPhone } from "@/lib/whatsapp";
+import { buildWhatsAppLink, formatPropertyInquiryMessage, isValidWhatsAppPhone } from "@/lib/whatsapp";
 
 /**
  * Send inquiry to agent via WhatsApp link
@@ -33,9 +33,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const property = await Property.findById(inquiry.property).select(
-      "owner title price address"
-    );
+    const property = await Property.findById(inquiry.property).select("owner title price currency location");
     if (!property) {
       return NextResponse.json(
         { error: "Property not found" },
@@ -46,7 +44,8 @@ export async function GET(req: NextRequest) {
     // Get agent phone
     const agent = await User.findById(property.owner).select("phone");
     
-    if (!agent?.phone || !isValidNigerianPhone(agent.phone)) {
+    const marketCode = property.location?.countryCode ?? "NG";
+    if (!agent?.phone || !isValidWhatsAppPhone(agent.phone, marketCode)) {
       return NextResponse.json(
         { error: "Agent phone number not available or invalid" },
         { status: 400 }
@@ -55,19 +54,20 @@ export async function GET(req: NextRequest) {
 
     // Format message
     const propertyAddress =
-      property.location.address ||
-      `${property.location.city}, ${property.location.state}`;
+      property.location?.address ||
+      `${property.location?.city}, ${property.location?.state}`;
     const message = formatPropertyInquiryMessage(
       property.title || propertyAddress,
       property.price,
       propertyAddress,
       inquiry.buyerName,
       inquiry.message,
-      `${process.env.NEXTAUTH_URL}/listings/${property._id}`
+      `${process.env.NEXTAUTH_URL}/listings/${property._id}`,
+      property.currency
     );
 
     // Build WhatsApp link
-    const whatsappLink = buildWhatsAppLink(agent.phone, message);
+    const whatsappLink = buildWhatsAppLink(agent.phone, message, marketCode);
 
     return NextResponse.json({
       whatsappLink,
@@ -115,9 +115,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const property = await Property.findById(inquiry.property).select(
-      "title owner"
-    );
+    const property = await Property.findById(inquiry.property).select("title owner location.countryCode");
     if (!property) {
       return NextResponse.json(
         { error: "Property not found" },
@@ -136,7 +134,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Get buyer phone
-    if (!isValidNigerianPhone(inquiry.buyerContact)) {
+    const marketCode = property.location?.countryCode ?? "NG";
+    if (!isValidWhatsAppPhone(inquiry.buyerContact, marketCode)) {
       return NextResponse.json(
         { error: "Buyer phone number not available or valid" },
         { status: 400 }
@@ -147,7 +146,7 @@ export async function POST(req: NextRequest) {
     const message = `Hi ${inquiry.buyerName}! ${agent.name} replied to your inquiry about ${property.title}:\n\n${responseMessage}\n\nCall/WhatsApp: ${agent.phone || ""}`;
 
     // Build WhatsApp link
-    const whatsappLink = buildWhatsAppLink(inquiry.buyerContact, message);
+    const whatsappLink = buildWhatsAppLink(inquiry.buyerContact, message, marketCode);
 
     return NextResponse.json({
       success: true,

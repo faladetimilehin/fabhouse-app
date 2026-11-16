@@ -9,6 +9,8 @@ export interface ISearchAlert extends Document {
     type?: string;
     purpose?: string;
     state?: string;
+    city?: string;
+    country?: string;
     minPrice?: number;
     maxPrice?: number;
     priceCurrency?: string;
@@ -27,6 +29,8 @@ const SearchAlertSchema = new Schema<ISearchAlert>(
       type: { type: String },
       purpose: { type: String },
       state: { type: String },
+      city: { type: String },
+      country: { type: String },
       minPrice: { type: Number },
       maxPrice: { type: Number },
       priceCurrency: { type: String },

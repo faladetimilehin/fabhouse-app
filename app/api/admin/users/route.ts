@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   const total = await User.countDocuments(filter);
   const users = await User.find(filter)
-    .select("-passwordHash -resetPasswordTokenHash")
+    .select("name email role countryCode isVerified isSuspended suspendedReason verificationStatus createdAt updatedAt")
     .sort({ createdAt: -1 })
     .skip((page - 1) * pageSize)
     .limit(pageSize)

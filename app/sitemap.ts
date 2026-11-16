@@ -19,7 +19,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     await dbConnect();
-    const listings = await Property.find({ status: "active" }).select("_id updatedAt").limit(5000).lean();
+    const listings = await Property.find({ status: "active" })
+      .select("_id updatedAt location.countryCode location.city")
+      .limit(5000)
+      .lean();
 
     const listingRoutes: MetadataRoute.Sitemap = listings.map((l: any) => ({
       url: `${baseUrl}/listings/${l._id.toString()}`,
@@ -28,7 +31,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-    return [...staticRoutes, ...listingRoutes];
+    const localSearches = new Map<string, { countryCode: string; city?: string }>();
+    for (const listing of listings as any[]) {
+      const countryCode = listing.location?.countryCode ?? "NG";
+      localSearches.set(`${countryCode}:`, { countryCode });
+      if (listing.location?.city) {
+        localSearches.set(`${countryCode}:${listing.location.city}`, { countryCode, city: listing.location.city });
+      }
+    }
+    const marketRoutes: MetadataRoute.Sitemap = Array.from(localSearches.values()).map((search) => {
+      const params = new URLSearchParams({ country: search.countryCode });
+      if (search.city) params.set("city", search.city);
+      return {
+        url: `${baseUrl}/listings?${params.toString()}`,
+        changeFrequency: "daily",
+        priority: search.city ? 0.65 : 0.7,
+      };
+    });
+
+    return [...staticRoutes, ...marketRoutes, ...listingRoutes];
   } catch {
     // If the DB is unreachable at build/request time, still return the
     // static routes rather than failing the whole sitemap.

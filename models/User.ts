@@ -1,5 +1,7 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import type { PlanTier } from "@/config/features";
+import type { MarketCode } from "@/config/markets";
+import { MARKETS } from "@/config/markets";
 
 export type UserRole = "buyer" | "agent" | "developer" | "admin";
 
@@ -9,6 +11,7 @@ export interface IUser extends Document {
   passwordHash: string;
   role: UserRole;
   phone?: string;
+  countryCode: MarketCode;
   // Email verification
   isEmailVerified: boolean;
   emailVerificationTokenHash?: string;
@@ -17,8 +20,14 @@ export interface IUser extends Document {
   isVerified: boolean; // the "trust badge" from the pitch deck
   isSuspended: boolean; // admin can block a user without deleting their data
   suspendedReason?: string;
-  consentedToTermsAt?: Date; // NDPR: records when the user agreed to Privacy Policy & Terms
+  consentedToTermsAt?: Date; // records acceptance of Privacy Policy & Terms
   savedListings: Types.ObjectId[]; // buyer favorites
+  verificationDocument?: {
+    publicId: string;
+    format: string;
+    resourceType: "image" | "raw";
+    uploadedAt: Date;
+  };
   verificationDocUrl?: string; // ID/CAC document submitted for the verified badge
   verificationStatus: "none" | "pending" | "approved" | "rejected";
   verificationRejectedReason?: string;
@@ -27,6 +36,7 @@ export interface IUser extends Document {
   planTier: PlanTier;
   planRenewsAt?: Date;
   paystackCustomerCode?: string;
+  processedPlanPaymentReferences: string[];
   // --- password reset ---
   resetPasswordTokenHash?: string;
   resetPasswordExpires?: Date;
@@ -41,6 +51,7 @@ const UserSchema = new Schema<IUser>(
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ["buyer", "agent", "developer", "admin"], default: "buyer" },
     phone: { type: String },
+    countryCode: { type: String, enum: MARKETS.map((market) => market.code), default: "NG", uppercase: true, trim: true },
     // Email verification
     isEmailVerified: { type: Boolean, default: false },
     emailVerificationTokenHash: { type: String },
@@ -51,6 +62,12 @@ const UserSchema = new Schema<IUser>(
     suspendedReason: { type: String },
     consentedToTermsAt: { type: Date },
     savedListings: [{ type: Schema.Types.ObjectId, ref: "Property" }],
+    verificationDocument: {
+      publicId: { type: String },
+      format: { type: String },
+      resourceType: { type: String, enum: ["image", "raw"] },
+      uploadedAt: { type: Date },
+    },
     verificationDocUrl: { type: String },
     verificationStatus: {
       type: String,
@@ -61,6 +78,7 @@ const UserSchema = new Schema<IUser>(
     planTier: { type: String, enum: ["free", "starter", "professional", "developer"], default: "free" },
     planRenewsAt: { type: Date },
     paystackCustomerCode: { type: String },
+    processedPlanPaymentReferences: { type: [String], default: [] },
     resetPasswordTokenHash: { type: String },
     resetPasswordExpires: { type: Date },
   },

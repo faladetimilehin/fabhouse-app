@@ -2,8 +2,32 @@
  * Builds a wa.me deep link with a pre-filled message. No WhatsApp Business
  * API or key needed — this is just a formatted URL that opens a chat.
  */
-export function buildWhatsAppLink(phone: string, message: string): string {
-  const digitsOnly = phone.replace(/[^\d+]/g, "").replace(/^\+/, "");
+const MARKET_DIAL_CODES: Record<string, { dialCode: string; nationalLength: number }> = {
+  NG: { dialCode: "234", nationalLength: 10 },
+  GH: { dialCode: "233", nationalLength: 9 },
+  KE: { dialCode: "254", nationalLength: 9 },
+  ZA: { dialCode: "27", nationalLength: 9 },
+};
+
+export function normalizeWhatsAppPhone(phone: string, countryCode?: string): string | null {
+  const trimmed = phone.trim();
+  let digits = trimmed.replace(/\D/g, "");
+  if (trimmed.startsWith("00")) digits = digits.slice(2);
+  if (trimmed.startsWith("+") || trimmed.startsWith("00")) {
+    return /^[1-9]\d{7,14}$/.test(digits) ? digits : null;
+  }
+
+  const market = countryCode ? MARKET_DIAL_CODES[countryCode.toUpperCase()] : undefined;
+  if (!market) return null;
+  if (digits.startsWith(market.dialCode) && digits.length === market.dialCode.length + market.nationalLength) {
+    return digits;
+  }
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  return digits.length === market.nationalLength ? `${market.dialCode}${digits}` : null;
+}
+
+export function buildWhatsAppLink(phone: string, message: string, countryCode?: string): string {
+  const digitsOnly = normalizeWhatsAppPhone(phone, countryCode) ?? phone.replace(/\D/g, "");
   return `https://wa.me/${digitsOnly}?text=${encodeURIComponent(message)}`;
 }
 
@@ -16,9 +40,10 @@ export function formatPropertyInquiryMessage(
   propertyAddress: string,
   buyerName: string,
   buyerMessage?: string,
-  propertyLink?: string
+  propertyLink?: string,
+  currency = "NGN"
 ): string {
-  const priceFormatted = `₦${propertyPrice.toLocaleString()}`;
+  const priceFormatted = `${propertyPrice.toLocaleString()} ${currency}`;
   
   let message = `Hi! I'm interested in this property:\n\n`;
   message += `🏠 ${propertyTitle}\n`;
@@ -57,11 +82,6 @@ export function formatInquiryResponseMessage(
   return message;
 }
 
-/**
- * Validate Nigerian phone number
- */
-export function isValidNigerianPhone(phone: string): boolean {
-  const cleaned = phone.replace(/[^\d+]/g, "");
-  // Accept formats: +234..., 0234..., 234...
-  return /^(\+234|234|0)[\d]{10}$/.test(cleaned);
+export function isValidWhatsAppPhone(phone: string, countryCode?: string): boolean {
+  return normalizeWhatsAppPhone(phone, countryCode) !== null;
 }

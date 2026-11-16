@@ -2,7 +2,7 @@ import SearchAlert from "@/models/SearchAlert";
 import { sendEmail } from "@/lib/email";
 import type { IProperty } from "@/models/Property";
 import { formatPrice } from "@/lib/formatting";
-import { convertToNGN } from "@/lib/currency";
+import { getMarket } from "@/config/markets";
 
 /**
  * Checks every saved search alert against a newly-activated listing and
@@ -40,14 +40,15 @@ function matches(property: any, criteria: Record<string, any>): boolean {
   if (criteria.type && property.type !== criteria.type) return false;
   if (criteria.purpose && property.purpose !== criteria.purpose) return false;
   if (criteria.state && property.location.state.toLowerCase() !== criteria.state.toLowerCase()) return false;
+  if (criteria.city && property.location.city.toLowerCase() !== criteria.city.toLowerCase()) return false;
+  const propertyCountry = property.location.countryCode ?? "NG";
+  if (criteria.country && propertyCountry !== criteria.country.toUpperCase()) return false;
 
-  // Compare on the NGN-normalized price so a search saved in GBP or USD
-  // still matches listings priced in a different currency (lib/currency.ts).
   if (criteria.minPrice || criteria.maxPrice) {
-    const currency = criteria.priceCurrency ?? "NGN";
-    const propertyPriceNGN = property.priceNGN ?? convertToNGN(property.price, property.currency);
-    if (criteria.minPrice && propertyPriceNGN < convertToNGN(criteria.minPrice, currency)) return false;
-    if (criteria.maxPrice && propertyPriceNGN > convertToNGN(criteria.maxPrice, currency)) return false;
+    const currency = criteria.priceCurrency ?? getMarket(criteria.country).currency;
+    if (property.currency !== currency) return false;
+    if (criteria.minPrice && property.price < criteria.minPrice) return false;
+    if (criteria.maxPrice && property.price > criteria.maxPrice) return false;
   }
 
   if (criteria.q) {

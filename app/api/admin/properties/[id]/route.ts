@@ -8,6 +8,19 @@ import { sendEmail, listingApprovedEmail, listingRejectedEmail } from "@/lib/ema
 import { notifyMatchingSearchAlerts } from "@/lib/searchAlerts";
 import { logAdminAction } from "@/lib/auditLog";
 import ListingExpiry from "@/models/ListingExpiry";
+import { z } from "zod";
+
+const reviewSchema = z.object({
+  status: z.enum(["active", "rejected"]),
+  reason: z.string().trim().max(500).optional(),
+  reviewEvidence: z.object({
+    locationConfirmed: z.boolean(),
+    authorityToLetReviewed: z.boolean(),
+    mediaCompared: z.boolean(),
+    chargesAndCapacityConfirmed: z.boolean(),
+    notes: z.string().trim().max(1000),
+  }).optional(),
+});
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,13 +29,40 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Admins only." }, { status: 403 });
   }
 
-  const { status, reason } = await req.json();
-  if (!["active", "rejected"].includes(status)) {
-    return NextResponse.json({ error: "Invalid status." }, { status: 400 });
-  }
+  const parsed = reviewSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid listing review." }, { status: 400 });
+  const { status, reason, reviewEvidence } = parsed.data;
 
   await dbConnect();
-  const property = await Property.findByIdAndUpdate(id, { status }, { new: true });
+  const current = await Property.findById(id);
+  if (!current) return NextResponse.json({ error: "Not found." }, { status: 404 });
+  if (current.status !== "pending") return NextResponse.json({ error: "This listing is no longer awaiting review." }, { status: 409 });
+  if (status === "active" && current.purpose === "shortlet") {
+    const checks = reviewEvidence && [
+      reviewEvidence.locationConfirmed,
+      reviewEvidence.authorityToLetReviewed,
+      reviewEvidence.mediaCompared,
+      reviewEvidence.chargesAndCapacityConfirmed,
+    ].every(Boolean);
+    if (!checks || !reviewEvidence?.notes || reviewEvidence.notes.length < 10) {
+      return NextResponse.json({ error: "Complete all short-stay checks and add a note describing the evidence reviewed." }, { status: 400 });
+    }
+  }
+  const update: Record<string, any> = { status };
+  if (status === "active" && current.purpose === "shortlet" && reviewEvidence) {
+    update.reviewEvidence = {
+      checks: {
+        locationConfirmed: reviewEvidence.locationConfirmed,
+        authorityToLetReviewed: reviewEvidence.authorityToLetReviewed,
+        mediaCompared: reviewEvidence.mediaCompared,
+        chargesAndCapacityConfirmed: reviewEvidence.chargesAndCapacityConfirmed,
+      },
+      notes: reviewEvidence.notes,
+      checkedBy: (session!.user as any).id,
+      checkedAt: new Date(),
+    };
+  }
+  const property = await Property.findOneAndUpdate({ _id: id, status: "pending" }, { $set: update }, { new: true });
   if (!property) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const owner = await User.findById(property.owner);

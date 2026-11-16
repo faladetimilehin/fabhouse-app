@@ -6,6 +6,8 @@ import { dbConnect } from "@/lib/mongodb";
 import User from "@/models/User";
 import { sendEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { MARKETS } from "@/config/markets";
+import type { MarketCode } from "@/config/markets";
 
 const registerSchema = z.object({
   name: z.string().min(2).max(100),
@@ -16,6 +18,7 @@ const registerSchema = z.object({
     .regex(/[a-z]/, "Must contain lowercase letter")
     .regex(/[0-9]/, "Must contain a number"),
   phone: z.string().optional(),
+  countryCode: z.enum(MARKETS.map((market) => market.code) as [string, ...string[]]).default("NG"),
   consent: z.literal(true, {
     message: "You must agree to the Privacy Policy and Terms of Service to register.",
   }),
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { name, email, password, phone } = parsed.data;
+    const { name, email, password, phone, countryCode } = parsed.data;
 
     await dbConnect();
 
@@ -61,6 +64,7 @@ export async function POST(req: NextRequest) {
       passwordHash,
       role: "buyer", // ALWAYS buyer - prevent privilege escalation
       phone,
+      countryCode: countryCode as MarketCode,
       consentedToTermsAt: new Date(),
       isEmailVerified: false,
       emailVerificationTokenHash,

@@ -9,7 +9,7 @@ export default function Footer() {
           <p className="text-white font-bold text-lg mb-2">
             FAB<span className="text-gold">HOUSE</span>
           </p>
-          <p>Trusted property listings for Nigeria and the diaspora.</p>
+          <p>Property discovery across African markets and beyond, with local detail and direct connections.</p>
         </div>
 
         <div>
@@ -29,7 +29,7 @@ export default function Footer() {
           </div>
           <div className="flex items-center gap-1.5 mt-3 text-xs text-white/50">
             <ShieldCheck className="w-3.5 h-3.5 text-gold" />
-            Your data is protected under NDPR
+            Privacy and data rights
           </div>
         </div>
       </div>

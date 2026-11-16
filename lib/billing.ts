@@ -7,9 +7,15 @@ import type { IUser } from "@/models/User";
  * no matter what's on their account — so switching billing on later
  * doesn't require a data migration, just a flag flip.
  */
-export function getEffectivePlan(user: Pick<IUser, "planTier"> | null | undefined): PlanLimits {
+export function getEffectivePlan(user: Pick<IUser, "planTier" | "planRenewsAt"> | null | undefined): PlanLimits {
   if (!BILLING_ENABLED) return UNRESTRICTED_PLAN;
-  const tier = user?.planTier ?? "free";
+  let tier = user?.planTier ?? "free";
+  if (
+    (tier === "starter" || tier === "professional") &&
+    (!user?.planRenewsAt || user.planRenewsAt <= new Date())
+  ) {
+    tier = "free";
+  }
   return PLAN_CATALOG[tier] ?? PLAN_CATALOG.free;
 }
 

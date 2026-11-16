@@ -4,7 +4,7 @@ export default function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-12 text-navy/80">
       <h1 className="text-3xl font-bold text-navy mb-2">Terms of Service</h1>
-      <p className="text-sm text-navy/50 mb-8">Last updated: [insert date]</p>
+      <p className="text-sm text-navy/50 mb-8">Draft for legal review · 16 November 2026</p>
 
       <div className="bg-amber-50 border border-amber-200 rounded-md px-4 py-3 text-sm text-amber-800 mb-8">
         <strong>Before publishing this live:</strong> this draft reflects how Fabhouse actually works today, but it
@@ -14,10 +14,10 @@ export default function TermsPage() {
 
       <h2 className="text-xl font-semibold text-navy mt-8 mb-2">1. What Fabhouse is</h2>
       <p>
-        Fabhouse is a listing platform that connects property buyers, renters, agents, and developers in Nigeria
-        and the diaspora. We provide the platform for listing and discovering property — we are not a party to
-        any sale, tenancy, or transaction between users, and we do not verify legal title, survey accuracy, or the
-        truthfulness of listing details beyond our admin review process.
+        Fabhouse is a property discovery platform for the markets shown on the site, connecting buyers, renters,
+        agents, hosts, and developers. We provide the platform for listing and discovering property — we are not a
+        party to any sale, tenancy, or stay between users, and we do not verify legal title, survey accuracy, or the
+        truthfulness of listing details beyond our review process. Local laws and availability vary by market.
       </p>
 
       <h2 className="text-xl font-semibold text-navy mt-8 mb-2">2. Accounts</h2>
@@ -27,6 +27,14 @@ export default function TermsPage() {
         <li>You must be able to legally enter into agreements to use Fabhouse (typically 18+)</li>
         <li>We may suspend accounts that violate these terms, post fraudulent listings, or abuse the platform</li>
       </ul>
+
+      <h2 className="text-xl font-semibold text-navy mt-8 mb-2">Short-let listings</h2>
+      <p>
+        For reviewed short-let listings, guests can request dates and hosts can accept a 24-hour unpaid hold.
+        An accepted hold is not a confirmed booking. Fabhouse does not collect stay payments, issue refunds,
+        or pay hosts. Either party can cancel an unpaid request and release its dates. Agree final stay terms
+        directly with the host before making any payment.
+      </p>
 
       <h2 className="text-xl font-semibold text-navy mt-8 mb-2">3. Listings</h2>
       <ul className="list-disc pl-6 space-y-1">

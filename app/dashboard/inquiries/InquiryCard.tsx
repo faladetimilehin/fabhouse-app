@@ -11,6 +11,9 @@ export interface InquiryData {
   buyerName: string;
   buyerContact: string;
   message: string;
+  stayCheckIn?: string;
+  stayCheckOut?: string;
+  stayGuestCount?: number;
   reply?: string;
   repliedAt?: string;
   createdAt: string;
@@ -67,6 +70,14 @@ export default function InquiryCard({ inquiry }: { inquiry: InquiryData }) {
       </div>
 
       <p className="mt-2 text-navy/80 text-sm bg-navy/5 rounded-md p-3">{inquiry.message}</p>
+
+      {inquiry.stayCheckIn && inquiry.stayCheckOut && (
+        <div className="mt-3 rounded-md border border-gold/40 bg-gold/10 px-3 py-2 text-sm">
+          <p className="font-semibold text-navy">Short-let date enquiry</p>
+          <p className="mt-1 text-navy/70">{inquiry.stayCheckIn.slice(0, 10)} to {inquiry.stayCheckOut.slice(0, 10)} · {inquiry.stayGuestCount} guest(s)</p>
+          <p className="mt-1 text-xs text-navy/50">Reply to confirm availability directly. Fabhouse has not booked or charged the guest.</p>
+        </div>
+      )}
 
       {saved && (
         <div className="mt-3 text-sm bg-gold/10 border border-gold/40 rounded-md p-3">

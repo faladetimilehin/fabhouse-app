@@ -22,6 +22,8 @@ export default function SaveSearchButton() {
     const type = searchParams.get("type") || undefined;
     const purpose = searchParams.get("purpose") || undefined;
     const state = searchParams.get("state") || undefined;
+    const city = searchParams.get("city") || undefined;
+    const country = searchParams.get("country") || undefined;
     const minPriceRaw = searchParams.get("minPrice");
     const maxPriceRaw = searchParams.get("maxPrice");
     const minPrice = minPriceRaw ? Number(minPriceRaw) : undefined;
@@ -43,7 +45,7 @@ export default function SaveSearchButton() {
     const res = await fetch("/api/search-alerts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, criteria: { q, type, purpose, state, minPrice, maxPrice, priceCurrency } }),
+      body: JSON.stringify({ label, criteria: { q, type, purpose, state, city, country, minPrice, maxPrice, priceCurrency } }),
     });
     setSaving(false);
 

@@ -3,12 +3,13 @@ import escapeStringRegexp from "escape-string-regexp";
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { dbConnect } from "@/lib/mongodb";
 import Property from "@/models/Property";
 import ListingsViewToggle from "@/components/ListingsViewToggle";
 import SaveSearchButton from "@/components/SaveSearchButton";
-import { convertToNGN } from "@/lib/currency";
+import { getMarket, isMarketCode, MARKETS } from "@/config/markets";
 
 const TYPES = [
   { label: "All types", value: "" },
@@ -26,40 +27,80 @@ interface SearchParams {
   type?: string;
   purpose?: string;
   state?: string;
+  city?: string;
+  country?: string;
   page?: string;
   minPrice?: string;
   maxPrice?: string;
   priceCurrency?: string;
 }
 
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
+  const params = await searchParams;
+  const selectedCountry = params.country?.toUpperCase();
+  const market = getMarket(selectedCountry === "ALL" ? undefined : selectedCountry);
+  const location = params.city ?? params.state;
+  const intent = params.purpose === "shortlet" ? "Shortlets" : params.purpose === "rent" ? "Homes for rent" : params.purpose === "sale" ? "Homes for sale" : "Property listings";
+  const marketLabel = selectedCountry === "ALL" ? "across available markets" : market.name;
+  const title = `${intent}${location ? ` in ${location}` : ""}, ${marketLabel} | Fabhouse`;
+  return {
+    title,
+    description: `Browse current ${intent.toLowerCase()}${location ? ` in ${location}` : ""} ${marketLabel}. Compare local-currency prices and contact property professionals on Fabhouse.`,
+  };
+}
+
 export default async function ListingsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
-  await dbConnect();
+  try {
+    await dbConnect();
+  } catch (error) {
+    console.error("Listings database connection failed:", error);
+    return (
+      <main className="mx-auto flex min-h-[55vh] max-w-3xl flex-col items-center justify-center px-6 py-20 text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9a5b3d]">A brief pause</p>
+        <h1 className="mt-4 font-serif text-4xl text-[#20342f] dark:text-white">We can’t reach the listings just now.</h1>
+        <p className="mt-4 max-w-xl leading-7 text-gray-600 dark:text-gray-300">Your search is still here. Please try again in a moment, or head back to the homepage.</p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link href={`/listings${params.purpose ? `?purpose=${encodeURIComponent(params.purpose)}` : ""}`} className="rounded-full bg-[#9a5b3d] px-6 py-3 font-semibold text-white hover:bg-[#7d4730]">Try again</Link>
+          <Link href="/" className="rounded-full border border-gray-300 px-6 py-3 font-semibold text-[#20342f] hover:bg-gray-50 dark:border-gray-600 dark:text-white dark:hover:bg-gray-800">Back to home</Link>
+        </div>
+      </main>
+    );
+  }
 
   const filter: Record<string, any> = { status: "active" };
   if (params.type) filter.type = params.type;
   if (params.purpose) filter.purpose = params.purpose;
   if (params.state) filter["location.state"] = params.state;
+  if (params.city) filter["location.city"] = params.city;
+  const requestedCountry = params.country?.toUpperCase();
+  const selectedCountry = requestedCountry && (requestedCountry === "ALL" || isMarketCode(requestedCountry))
+    ? requestedCountry
+    : "ALL";
+  if (selectedCountry !== "ALL") {
+    const countryFilter = selectedCountry === "NG"
+      ? [{ "location.countryCode": "NG" }, { "location.countryCode": { $exists: false } }]
+      : [{ "location.countryCode": selectedCountry }];
+    filter.$and = [...(filter.$and ?? []), { $or: countryFilter }];
+  }
 
-  const priceCurrency = params.priceCurrency || "NGN";
+  const priceCurrency = params.priceCurrency || getMarket(selectedCountry === "ALL" ? undefined : selectedCountry).currency;
   if (params.minPrice || params.maxPrice) {
-    // Every listing stores a priceNGN equivalent (see lib/currency.ts)
-    // regardless of its own currency, so a buyer filtering "under £200k"
-    // still matches listings priced in NGN or USD.
-    filter.priceNGN = {};
-    if (params.minPrice) filter.priceNGN.$gte = convertToNGN(Number(params.minPrice), priceCurrency);
-    if (params.maxPrice) filter.priceNGN.$lte = convertToNGN(Number(params.maxPrice), priceCurrency);
+    filter.currency = priceCurrency;
+    filter.price = {};
+    if (params.minPrice) filter.price.$gte = Number(params.minPrice);
+    if (params.maxPrice) filter.price.$lte = Number(params.maxPrice);
   }
 
   if (params.q) {
     const regex = new RegExp(escapeStringRegexp(params.q.trim()), "i");
-    filter.$or = [
+    filter.$and = [...(filter.$and ?? []), { $or: [
       { title: regex },
       { description: regex },
       { "location.city": regex },
       { "location.state": regex },
       { "location.address": regex },
-    ];
+    ] }];
   }
 
   const page = Math.max(1, Number(params.page ?? "1"));
@@ -80,6 +121,8 @@ export default async function ListingsPage({ searchParams }: { searchParams: Pro
     if (params.type) search.set("type", params.type);
     if (params.purpose) search.set("purpose", params.purpose);
     if (params.state) search.set("state", params.state);
+    if (params.city) search.set("city", params.city);
+    if (params.country) search.set("country", params.country);
     if (params.minPrice) search.set("minPrice", params.minPrice);
     if (params.maxPrice) search.set("maxPrice", params.maxPrice);
     if (params.priceCurrency) search.set("priceCurrency", params.priceCurrency);
@@ -100,6 +143,20 @@ export default async function ListingsPage({ searchParams }: { searchParams: Pro
           defaultValue={params.q}
           placeholder="Search by city, state, or keyword"
           className="flex-1 min-w-[200px] border border-navy/15 rounded-md px-3 py-2 text-sm outline-none focus:border-gold"
+        />
+        <select
+          name="country"
+          defaultValue={selectedCountry}
+          className="border border-navy/15 rounded-md px-3 py-2 text-sm outline-none focus:border-gold"
+        >
+          <option value="all">All markets</option>
+          {MARKETS.map((market) => <option key={market.code} value={market.code}>{market.name}</option>)}
+        </select>
+        <input
+          name="city"
+          defaultValue={params.city}
+          placeholder="City or area"
+          className="min-w-[140px] border border-navy/15 rounded-md px-3 py-2 text-sm outline-none focus:border-gold"
         />
         <select
           name="type"
@@ -127,7 +184,7 @@ export default async function ListingsPage({ searchParams }: { searchParams: Pro
             type="number"
             min={0}
             defaultValue={params.minPrice}
-            placeholder="Min price"
+            placeholder={`Min ${priceCurrency}`}
             className="w-24 py-2 text-sm outline-none"
           />
           <span className="text-navy/30">–</span>
@@ -136,18 +193,9 @@ export default async function ListingsPage({ searchParams }: { searchParams: Pro
             type="number"
             min={0}
             defaultValue={params.maxPrice}
-            placeholder="Max price"
+            placeholder={`Max ${priceCurrency}`}
             className="w-24 py-2 text-sm outline-none"
           />
-          <select
-            name="priceCurrency"
-            defaultValue={params.priceCurrency ?? "NGN"}
-            className="text-sm outline-none bg-transparent border-l border-navy/10 pl-1.5"
-          >
-            <option value="NGN">NGN</option>
-            <option value="USD">USD</option>
-            <option value="GBP">GBP</option>
-          </select>
         </div>
 
         <button className="bg-navy text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-navy-light transition">

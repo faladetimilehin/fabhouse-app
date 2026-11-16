@@ -7,6 +7,8 @@ export type PropertyType = "house" | "flat" | "land" | "shortlet" | "commercial"
 export type ListingPurpose = "sale" | "rent" | "shortlet";
 export type ListingStatus = "pending" | "active" | "sold" | "rented" | "rejected" | "archived";
 export type PriceQualifier = "fixed" | "negotiable" | "offers_over" | "offers_in_region_of" | "guide_price" | "poa";
+export type PricePeriod = "night" | "week" | "month" | "year";
+export type MarketCurrency = "NGN" | "GHS" | "KES" | "ZAR" | "GBP" | "USD";
 export type Tenure = "freehold" | "leasehold" | "governors_consent" | "c_of_o" | "not_applicable";
 
 export interface IProperty extends Document {
@@ -15,12 +17,14 @@ export interface IProperty extends Document {
   type: PropertyType;
   purpose: ListingPurpose;
   price: number;
-  priceNGN: number; // denormalized NGN equivalent, for cross-currency price filtering — see lib/currency.ts
-  currency: "NGN" | "GBP" | "USD";
+  pricePeriod?: PricePeriod;
+  priceNGN?: number; // legacy NGN normalization; new multi-market filters use the listing's own currency
+  currency: MarketCurrency;
   priceQualifier: PriceQualifier;
   priceReducedAt?: Date;
   previousPrice?: number;
   location: {
+    countryCode: string;
     state: string;
     city: string;
     address?: string;
@@ -43,6 +47,12 @@ export interface IProperty extends Document {
   isFeatured: boolean;
   targetDiaspora: boolean;
   mustSee: boolean;       // admin-flagged "Must See" badge
+  reviewEvidence?: {
+    checks: { locationConfirmed: boolean; authorityToLetReviewed: boolean; mediaCompared: boolean; chargesAndCapacityConfirmed: boolean };
+    notes: string;
+    checkedBy: Types.ObjectId;
+    checkedAt: Date;
+  };
   pid: string;            // short public ID e.g. "3NLED"
   createdAt: Date;
   updatedAt: Date;
@@ -55,8 +65,9 @@ const PropertySchema = new Schema<IProperty>(
     type: { type: String, enum: ["house", "flat", "land", "shortlet", "commercial"], required: true },
     purpose: { type: String, enum: ["sale", "rent", "shortlet"], required: true },
     price: { type: Number, required: true },
-    priceNGN: { type: Number, required: true, index: true },
-    currency: { type: String, enum: ["NGN", "GBP", "USD"], default: "NGN" },
+    pricePeriod: { type: String, enum: ["night", "week", "month", "year"] },
+    priceNGN: { type: Number, index: true },
+    currency: { type: String, enum: ["NGN", "GHS", "KES", "ZAR", "GBP", "USD"], default: "NGN" },
     priceQualifier: {
       type: String,
       enum: ["fixed", "negotiable", "offers_over", "offers_in_region_of", "guide_price", "poa"],
@@ -65,6 +76,7 @@ const PropertySchema = new Schema<IProperty>(
     priceReducedAt: { type: Date },
     previousPrice: { type: Number },
     location: {
+      countryCode: { type: String, default: "NG", uppercase: true, trim: true },
       state: { type: String, required: true },
       city: { type: String, required: true },
       address: { type: String },
@@ -94,6 +106,17 @@ const PropertySchema = new Schema<IProperty>(
     isFeatured: { type: Boolean, default: false },
     targetDiaspora: { type: Boolean, default: false },
     mustSee: { type: Boolean, default: false },
+    reviewEvidence: {
+      checks: {
+        locationConfirmed: { type: Boolean },
+        authorityToLetReviewed: { type: Boolean },
+        mediaCompared: { type: Boolean },
+        chargesAndCapacityConfirmed: { type: Boolean },
+      },
+      notes: { type: String, maxlength: 1000, select: false },
+      checkedBy: { type: Schema.Types.ObjectId, ref: "User", select: false },
+      checkedAt: { type: Date },
+    },
     pid: { type: String, unique: true, sparse: true, index: true },
   },
   { timestamps: true }

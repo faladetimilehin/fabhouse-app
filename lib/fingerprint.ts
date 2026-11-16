@@ -78,15 +78,17 @@ function extractPublicId(url: string): string {
 }
 
 /** Normalise address fields and SHA-256 the result */
-export function hashAddress(address: string, city: string, state: string): string {
-  const normalised = [address, city, state]
+export function hashAddress(address: string, city: string, state: string, countryCode = "NG"): string {
+  const parts = countryCode.toUpperCase() === "NG" ? [address, city, state] : [address, city, state, countryCode];
+  const normalised = parts
     .map((s) => s.trim().toLowerCase().replace(/\s+/g, " "))
     .join("|");
   return crypto.createHash("sha256").update(normalised).digest("hex");
 }
 
-export function normaliseAddress(address: string, city: string, state: string): string {
-  return [address, city, state]
+export function normaliseAddress(address: string, city: string, state: string, countryCode = "NG"): string {
+  const parts = countryCode.toUpperCase() === "NG" ? [address, city, state] : [address, city, state, countryCode];
+  return parts
     .map((s) => s.trim().toLowerCase().replace(/\s+/g, " "))
     .join(", ");
 }
@@ -148,12 +150,13 @@ export async function registerAddressFingerprint(
   listingId: Types.ObjectId,
   address: string,
   city: string,
-  state: string
+  state: string,
+  countryCode = "NG"
 ): Promise<number> {
   if (!address.trim()) return 0;
 
-  const hash = hashAddress(address, city, state);
-  const normalised = normaliseAddress(address, city, state);
+  const hash = hashAddress(address, city, state, countryCode);
+  const normalised = normaliseAddress(address, city, state, countryCode);
   const existing = await AddressFingerprint.findOne({ hash });
 
   if (existing) {
@@ -215,10 +218,11 @@ export async function checkAddressDuplicate(
   address: string,
   city: string,
   state: string,
-  excludeListingId?: string
+  excludeListingId?: string,
+  countryCode = "NG"
 ): Promise<number> {
   if (!address.trim()) return 0;
-  const hash = hashAddress(address, city, state);
+  const hash = hashAddress(address, city, state, countryCode);
   const existing = await AddressFingerprint.findOne({ hash });
   if (!existing) return 0;
 

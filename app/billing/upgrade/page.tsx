@@ -4,8 +4,10 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
-import { PLAN_CATALOG, BILLING_ENABLED, PlanTier } from "@/config/features";
+import { PLAN_CATALOG, BILLING_ENABLED, PlanTier, getMarketPlanPrice } from "@/config/features";
 import { Loader2 } from "lucide-react";
+import { getMarket } from "@/config/markets";
+import { formatPrice } from "@/lib/formatting";
 
 export default function UpgradePage() {
   return (
@@ -27,6 +29,7 @@ function UpgradePageInner() {
   const router = useRouter();
   const [verifying, setVerifying] = useState(false);
   const [loadingTier, setLoadingTier] = useState<PlanTier | null>(null);
+  const market = getMarket((authSession?.user as any)?.countryCode);
 
   const reference = searchParams.get("reference");
 
@@ -92,15 +95,20 @@ function UpgradePageInner() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-16">
-      <h1 className="text-2xl font-bold text-navy mb-6 text-center">Upgrade your plan</h1>
-      <div className="grid md:grid-cols-2 gap-6">
+      <h1 className="text-2xl font-bold text-navy mb-2 text-center">Upgrade your plan</h1>
+      <p className="text-center text-sm text-navy/60 mb-6">One-time payment for 30 days. No automatic renewal.</p>
+      {!getMarketPlanPrice(market.code, "starter") ? (
+        <p className="rounded-lg border border-navy/10 bg-white p-6 text-center text-navy/60">Agent plans are not available in {market.name} yet. Fabhouse will publish local pricing when payment and support are ready.</p>
+      ) : <div className="grid md:grid-cols-2 gap-6">
         {(["starter", "professional"] as PlanTier[]).map((tier) => {
           const plan = PLAN_CATALOG[tier];
+          const marketPrice = getMarketPlanPrice(market.code, tier as "starter" | "professional");
+          if (!marketPrice) return null;
           return (
             <div key={tier} className="bg-white border border-navy/10 rounded-lg p-6">
               <h3 className="font-bold text-navy text-lg">{plan.label}</h3>
               <p className="text-2xl font-bold text-navy mt-1">
-                {"\u20a6"}{plan.priceMonthlyNGN.toLocaleString()}<span className="text-sm font-normal text-navy/50">/mo</span>
+                {formatPrice(marketPrice.amount, marketPrice.currency)}<span className="text-sm font-normal text-navy/50">/30 days</span>
               </p>
               <button
                 onClick={() => startCheckout(tier)}
@@ -112,7 +120,7 @@ function UpgradePageInner() {
             </div>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 }

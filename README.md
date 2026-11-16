@@ -1,6 +1,6 @@
 # Fabhouse
 
-Property listing platform for Nigeria and the diaspora. Built with Next.js (App Router), TypeScript, MongoDB, NextAuth, and Tailwind.
+Property discovery and listing platform growing across African markets and beyond. Built with Next.js (App Router), TypeScript, MongoDB, NextAuth, and Tailwind.
 
 ## Screenshots
 
@@ -41,7 +41,7 @@ Open http://localhost:3000.
 - `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — server-side only, needed so deleting or editing a listing also deletes its removed photos from Cloudinary storage. Without these, deletion still works, it just leaves orphaned images in Cloudinary.
 - `RESEND_API_KEY` — without this, emails (welcome, listing approved/rejected, inquiries, password reset) are logged to your terminal instead of sent. See `lib/email.ts`.
 - `CRON_SECRET` — required in Vercel to authenticate the daily listing expiry job (`/api/cron/listing-expiry`). Set a private random value in the Vercel project environment variables; reminders also require `RESEND_API_KEY` to send.
-- `PAYSTACK_SECRET_KEY` / `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` — only needed once `NEXT_PUBLIC_BILLING_ENABLED=true`.
+- `PAYSTACK_SECRET_KEY` — only needed once `NEXT_PUBLIC_BILLING_ENABLED=true`. Configure `/api/billing/webhook` in Paystack; use `PAYSTACK_WEBHOOK_SECRET` if Paystack gives you a separate versioned signing secret (otherwise the endpoint supports the legacy signature using `PAYSTACK_SECRET_KEY`).
 
 ### Seed sample data (optional, for local testing)
 
@@ -69,24 +69,24 @@ Playwright smoke tests covering homepage, browsing, pagination, registration, lo
 
 - `/` — homepage with search
 - `/listings` — browse/filter listings, paginated (12 per page), partial/case-insensitive keyword search
-- `/listings/[id]` — single property page, with an inquiry form that emails the agent
+- `/listings/[id]` — single property page; short-lets have date availability checks and signed-in guests can request a stay
 - `/dashboard` — agent/developer's own listings, paginated, with edit/delete actions and inquiry counts
 - `/dashboard/new` — post a new listing with photo upload
 - `/dashboard/edit/[id]` — edit an existing listing (same form as new, pre-filled)
-- `/dashboard/inquiries` — all inquiries across an agent's listings, with an inline reply box
-- `/dashboard/listings/expiry` — review and renew listings; a daily Vercel Cron sends expiry reminders, renews opted-in listings, and archives expired ones. Set `CRON_SECRET` and `RESEND_API_KEY` in Vercel to enable scheduled runs and email delivery. Existing active listings without expiry data get a 30-day grace period on the first run.
-- `/admin` — admin-only. Three tabs:
-  - **Pending Review** — approve/reject new listings (owner gets emailed either way)
-  - **All Listings** — every listing regardless of status, searchable and filterable
-  - **Users** — every registered user, searchable by name/email, filterable by role. Admins can verify (adds the trust badge shown next to a name), suspend (blocks login immediately, doesn't delete their data or listings), or unsuspend any account. Admins can't suspend or demote themselves from this screen.
+- `/dashboard/inquiries` — all inquiries across an agent's listings, with an inline reply box and requested dates/guest count for short-let enquiries
+- `/dashboard/stays` — host calendar blocks, guest/host stay requests, accept/decline/cancel controls, and support-request status
+- `/admin/stay-support` — triage stay support tickets and send a response by email
+- `/dashboard/listings/expiry` — review and renew listings; a daily Vercel Cron sends expiry reminders, renews opted-in listings, archives expired listings, expires unpaid stay holds, and cleans up abandoned verification documents. Set `CRON_SECRET` and `RESEND_API_KEY` in Vercel to enable scheduled runs and email delivery. Existing active listings without expiry data get a 30-day grace period on the first run.
+- `/admin` — admin-only overview for listing review, identity-verification requests, users, and audit history. Identity badges are granted through the review queue after an ID/CAC document is checked; they do not confirm property title or listing accuracy. Admins can suspend or unsuspend accounts; suspension blocks sign-in without deleting account data.
 - `/pricing` — public pricing page
 - `/billing/upgrade` — plan checkout via Paystack (inactive until billing is turned on)
+- `/login` and `/register` — shared responsive auth layout with a property photograph, desktop split view, mobile welcome panel, accessible field labels, and browser autofill hints
 - `/forgot-password`, `/reset-password` — password reset via emailed token link (expires in 1 hour)
 
-## Nigeria-first, with diaspora buyers in mind
+## African markets and international reach
 
-Fabhouse defaults to the Nigerian market rather than the UK conventions it's visually inspired by:
-- **Currency** defaults to NGN everywhere (GBP/USD are there for diaspora-priced listings, not the default)
+The product currently supports listing and search localization for Nigeria, Ghana, Kenya, and South Africa, with selected international currencies available for eligible listings. This is product support, not worldwide inventory or a promise that transactions can be completed in every country. Expand city by city after supply, local moderation, support, payment methods, consumer rules, tax, address formats, and privacy/terms review are ready. Keep the property details specific to each place rather than flattening local conventions:
+- **Currency** defaults to the selected market (NGN, GHS, KES, or ZAR); GBP/USD are available for eligible diaspora-priced listings
 - **Price qualifiers** include "Negotiable" — the term actually used in Nigerian listings — alongside the UK-style "Offers Over" / "Guide Price" options, in case you list UK property too
 - **Tenure** leads with C of O and Governor's Consent (the two that matter for Nigerian land) before Freehold/Leasehold
 - **Land size** is a free-text field ("2 plots", "5,000 sqm", "half hectare") rather than a forced sq ft number — Nigerian land is sold in plots and hectares as often as square meters, and forcing one unit would make agents enter meaningless numbers just to satisfy the form
@@ -97,10 +97,10 @@ Since you're both the operator and, for now, the one posting real listings, here
 
 1. Register a normal account at `/register` with role **Agent** (or Developer) — this is your real, public-facing account that buyers will see and message.
 2. Separately, get an **admin** account so you can review/approve listings. Easiest way: run `npm run seed` once against your real database — it creates `admin@fabhouse.ng` / `changeme123` — then **change that password immediately** from a database tool or by adding a change-password flow later.
-3. Log in as admin, go to `/admin/users`, find your agent account, and click **Verify** — this adds the trust badge next to your name everywhere it's shown, which matters a lot for diaspora buyers who can't inspect a listing in person.
-4. Log back into your agent account and post real listings from `/dashboard/new`.
+3. In your agent account, open `/account`, upload an ID or CAC document, and submit it for review. An admin reviews it from the verification queue. The identity badge does not prove property ownership or listing accuracy.
+4. After review, post real listings from `/dashboard/new` and provide clear evidence for each listing's accuracy and availability.
 
-Admins can verify their own account from `/admin/users` (harmless — it only adds a badge) but can't suspend or change their own role from that screen, to avoid accidentally locking yourself out.
+Admins cannot grant identity badges directly from the user list; badges follow the document-review flow. Admins also cannot suspend or change their own role from that screen, to avoid accidentally locking themselves out.
 
 ## Rightmove-style listing details
 
@@ -147,26 +147,27 @@ Everything related to charging lives behind **one flag**: `BILLING_ENABLED` in `
 - **Right now**, it's `false`. Every user gets the `UNRESTRICTED_PLAN` (unlimited listings, all features unlocked). The navbar and pricing page both show an honest "free during launch" message.
 - **The data model is already in place** — `User.planTier`, `Property.isFeatured` / `targetDiaspora`.
 - **The enforcement logic already exists** in `lib/billing.ts` (`canPerform()`, `getEffectivePlan()`) and is already called from `POST /api/properties`.
-- **The checkout flow already exists** — `/api/billing/initialize` and `/api/billing/verify` talk to Paystack and update the user's plan on successful payment. It returns 404 while billing is off.
+- **The checkout flow is implemented but gated** — `/api/billing/initialize` and `/api/billing/verify` use server-set prices and persisted references; `/api/billing/webhook` verifies signed Paystack events and applies successful payment once. The endpoints return 404 while billing is off.
 
 ### When you're ready to start charging
 
-1. Set `NEXT_PUBLIC_BILLING_ENABLED=true`.
-2. Add `PAYSTACK_SECRET_KEY` and `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY`.
-3. Visit `/billing/upgrade` — it's already wired up.
+1. Approve the Nigeria price points and support/refund process; these amounts are assumptions until agents validate them.
+2. Add `PAYSTACK_SECRET_KEY`, set `NEXT_PUBLIC_BILLING_ENABLED=true`, and configure the Paystack webhook URL as `https://<your-domain>/api/billing/webhook` (plus `PAYSTACK_WEBHOOK_SECRET` if supplied).
+3. Run Paystack test payments and test success/failure callbacks, duplicate webhook delivery, expiry, and support handling before accepting live payments. Each payment gives one month of access and does not auto-renew.
 
 No listing, dashboard, or admin code needs to change when you flip the switch.
 
-## NDPR (Nigeria Data Protection Regulation) compliance
+## Privacy foundations and market compliance
 
-- **`/privacy`** and **`/terms`** — real policy pages reflecting how Fabhouse actually collects and processes data, written with the Nigeria Data Protection Act 2023 in mind. **Both are flagged in-page as drafts that need a lawyer's review before going live** — especially retention periods, international transfer language, and NDPC/NITDA registration status, none of which I can determine on your behalf.
+- **`/privacy`** and **`/terms`** — real policy pages reflecting how Fabhouse actually collects and processes data, written with the Nigeria Data Protection Act 2023 in mind. **Both are flagged in-page as drafts that need a lawyer's review before going live** — especially retention periods, international transfers, obligations under Nigeria's current data-protection framework, and the laws and regulator requirements in each new market.
 - **Consent at registration** — signup requires explicitly agreeing to the Privacy Policy and Terms; this is enforced server-side (`consent: true` required by the API, not just a UI checkbox), and the acceptance is timestamped on the user record (`consentedToTermsAt`).
-- **`/account`** — self-service page for the two data subject rights that matter most day-to-day:
-  - **Download my data** (`/api/account/export`) — one-click JSON export of everything Fabhouse holds on that user: profile, listings, and inquiries received on their listings.
-  - **Delete my account** (`/api/account/delete`) — permanent deletion of the account, its listings, their hosted photos/videos (cleaned up from Cloudinary), and inquiries tied to those listings. Requires re-entering the password as a confirmation step, since it's irreversible.
+- **Professional identity documents** — new ID/CAC uploads use Cloudinary authenticated storage and are deleted after the admin decision. Admin access uses a short-lived signed document link. The badge is described as an identity check; it does not verify property title or every listing claim.
+- **`/account`** — self-service page for account data rights:
+  - **Download my data** (`/api/account/export`) — JSON export of account, listings, sent/received inquiries, saved searches, written reviews, stay requests/support tickets, and plan-payment records; authentication secrets and private verification-document links are excluded.
+  - **Delete my account** (`/api/account/delete`) — removes the account, listings, hosted media, related inquiries, saved searches, reviews, unpaid stay requests, and related support tickets. Password accounts re-enter their password; Google accounts confirm from their active signed-in session.
 - **Footer** — links to Privacy/Terms and a data-protection note on every page.
 
-None of this replaces actual legal advice — it's the technical scaffolding NDPR requires (consent capture, access, portability, erasure), built and working. The legal text itself needs a professional review before you rely on it.
+These features provide basic account-data export and deletion controls. They do not establish legal compliance by themselves. Nigeria's NDP Act 2023 and the NDPC's 2025 implementation guidance have replaced NDPR as the current framework; each launch market needs its own qualified legal review before relying on these pages.
 
 ## Recently added: discovery, trust, and growth features
 
@@ -197,7 +198,7 @@ None of this replaces actual legal advice — it's the technical scaffolding NDP
 
 ## Multi-currency search, audit log, and admin dashboard
 
-**Multi-currency price search** — every listing stores a denormalized `priceNGN` field (`lib/currency.ts`), computed at create time and recomputed on edit whenever price or currency changes. Search filtering (`/listings` and `/api/properties`) compares on `priceNGN`, so a buyer filtering "under £200,000" correctly matches listings priced in NGN or USD too, not just GBP. Saved search alerts use the same normalized comparison. The exchange rates are static and commented as needing periodic manual updates — they're only used to make search comparable across currencies, never for anything financial/transactional.
+**Local-currency price search** — new searches compare prices within the selected market currency (NGN, GHS, KES, or ZAR), so a GHS filter does not silently compare against a Nigerian price. GBP and USD remain available for eligible listings. `priceNGN` remains only as a legacy compatibility field; do not use it for new African-market search filters or financial transactions.
 
 **Admin audit log** — every admin action that changes something (approve/reject a listing, verify/suspend a user, approve/reject a verification document) is now recorded in `models/AuditLog.ts` via `lib/auditLog.ts`, and viewable at `/admin/audit-log` with filtering by action type. Logging is best-effort and never blocks the actual admin action if it fails.
 
@@ -226,5 +227,12 @@ MongoDB-backed (not in-memory, so it survives serverless cold starts) via `lib/r
 
 ## Still to build
 
+- **Africa market rollout:** the listing model and search now carry country and local currency for Nigeria, Ghana, Kenya, and South Africa; country/city metadata and sitemap routes are country-aware. The UI can accept listings in these markets, but this is technical readiness, not proof that Fabhouse has vetted inventory or support operations there. Open each country city by city after confirming local moderation, address conventions, consumer rules, tax, and customer support.
+- **Short-let stays have a pre-payment request flow.** Hosts can block dates; guests can see blocked/held dates and request a stay; host acceptance places a 24-hour unpaid hold; either party can cancel before payment. This is not a confirmed booking and Fabhouse does not collect stay payments, issue refunds, or pay hosts.
+- **Paid short-let launch is blocked on operations and approvals:** local check-in rules, calendar/time-zone and offline booking process, guest/host cancellation and refund policy, checkout, provider-approved settlement and reconciliation, response coverage, and a successful end-to-end incident/refund/payout drill. See [`docs/market-launch-readiness.md`](docs/market-launch-readiness.md) for the gate and decision record. Do not treat a transfer split as escrow or delayed host payout.
+- **Realistic revenue order:** keep ordinary buyer/renter discovery free while building local supply and response rates; test optional agent visibility and team tools against measurable leads; then earn a clearly disclosed booking/service fee on completed short stays after payment, cancellation, refund, and host-support operations are working. Do not sell verification badges or charge guests before a booking can be fulfilled. The interview plan and per-market go/no-go checklist are in [`docs/market-launch-readiness.md`](docs/market-launch-readiness.md).
+- **Agent plan payments:** the Paystack path uses market-specific configured currency and price, checks the signed-in account and stored amount, stores payment references idempotently, extends access by one month, and accepts signed webhooks. Plans are one-time access, not auto-renewing subscriptions. Billing remains disabled by default. Only Nigeria has draft prices; validate them with agents and configure local prices, support, receipts, terms, and payment policies before opening any other market.
+- **Featured listings:** paid-plan entitlements are connected to a feature/unfeature action with plan limits. This is part of the optional agent value proposition; confirm the plans and slot limits against real agent usage before enabling billing.
 - Diaspora-specific landing page / campaign placement logic
-- Server-side validation / moderation on uploaded images (currently trusts the unsigned Cloudinary upload)
+- Server-side validation and moderation for listing photos/videos (listing media currently uses unsigned Cloudinary upload presets)
+- Market-by-market legal review and localized privacy/terms before enabling transactions or actively launching each country

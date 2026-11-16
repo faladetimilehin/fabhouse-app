@@ -28,9 +28,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  // Admins can verify their own account (harmless — just adds the trust
-  // badge) but can't suspend or demote themselves from this screen, to
-  // avoid an accidental lockout.
   if (isSelf && (parsed.data.isSuspended !== undefined || parsed.data.role !== undefined)) {
     return NextResponse.json(
       { error: "You can't suspend or change the role of your own account from here." },
@@ -39,9 +36,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   await dbConnect();
-  const updated = await User.findByIdAndUpdate(id, parsed.data, { new: true }).select(
-    "-passwordHash -resetPasswordTokenHash"
-  );
+  const existing = await User.findById(id);
+  if (!existing) return NextResponse.json({ error: "User not found." }, { status: 404 });
+  if (parsed.data.isVerified === true && existing.verificationStatus !== "approved") {
+    return NextResponse.json({ error: "Review identity documents before adding the verified badge." }, { status: 409 });
+  }
+
+  const update: Record<string, unknown> = { ...parsed.data };
+  if (parsed.data.isVerified === false) update.verificationStatus = "none";
+  const updated = await User.findByIdAndUpdate(id, update, { new: true })
+    .select("name email role isVerified isSuspended verificationStatus")
+    .lean();
 
   if (!updated) return NextResponse.json({ error: "User not found." }, { status: 404 });
 

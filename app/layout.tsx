@@ -19,9 +19,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Fabhouse — Trusted Property Listings for Nigeria & the Diaspora",
+  title: "Fabhouse — Find a Place That Feels Right",
   description:
-    "Find verified houses, flats, land, and commercial property for sale or rent in Nigeria. Built for buyers at home and in the diaspora.",
+    "Find property with clear details and a direct line to local professionals. Fabhouse is growing across African markets and beyond; availability varies by location.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

@@ -13,7 +13,7 @@ export default async function AccountPage() {
 
   await dbConnect();
   const user = await User.findById((session.user as any).id)
-    .select("verificationStatus isVerified verificationRejectedReason")
+    .select("countryCode passwordHash verificationStatus isVerified verificationRejectedReason verificationDocument.publicId")
     .lean();
 
   return (
@@ -21,9 +21,12 @@ export default async function AccountPage() {
       name={session.user.name ?? ""}
       email={session.user.email ?? ""}
       role={(session.user as any).role}
+      countryCode={(user as any)?.countryCode ?? "NG"}
       isVerified={(user as any)?.isVerified ?? false}
       verificationStatus={(user as any)?.verificationStatus ?? "none"}
       verificationRejectedReason={(user as any)?.verificationRejectedReason}
+      hasVerificationDocument={Boolean((user as any)?.verificationDocument?.publicId)}
+      requiresPasswordForDelete={!String((user as any)?.passwordHash ?? "").startsWith("oauth:google:")}
     />
   );
 }

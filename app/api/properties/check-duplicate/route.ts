@@ -10,11 +10,11 @@ export async function POST(req: NextRequest) {
 
   await dbConnect();
 
-  const { images = [], address = "", city = "", state = "", excludeListingId } = await req.json();
+  const { images = [], address = "", city = "", state = "", countryCode = "NG", excludeListingId } = await req.json();
 
   const [imageDuplicates, addressCount] = await Promise.all([
     checkImageDuplicates(images, excludeListingId),
-    checkAddressDuplicate(address, city, state, excludeListingId),
+    checkAddressDuplicate(address, city, state, excludeListingId, countryCode),
   ]);
 
   return NextResponse.json({

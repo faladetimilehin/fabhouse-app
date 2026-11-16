@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import SearchFilters from "@/components/SearchFilters";
 import { Loader, Map, List } from "lucide-react";
 import toast from "react-hot-toast";
+import { formatPrice, formatPricePeriod } from "@/lib/formatting";
+import { getMarket } from "@/config/markets";
 
 const EnhancedListingsMap = dynamic(
   () => import("@/components/EnhancedListingsMap"),
@@ -17,6 +19,9 @@ interface Property {
   title?: string;
   address: string;
   price: number;
+  currency?: string;
+  priceQualifier?: string;
+  pricePeriod?: string;
   bedrooms: number;
   bathrooms: number;
   type: string;
@@ -28,17 +33,14 @@ interface Property {
 
 export default function MapSearchPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"map" | "list">("map");
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showClustering, setShowClustering] = useState(true);
 
-  useEffect(() => {
-    searchProperties();
-  }, [searchParams]);
-
-  const searchProperties = async () => {
+  const searchProperties = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams(searchParams);
@@ -53,7 +55,7 @@ export default function MapSearchPage() {
         ...p,
         address:
           p.location?.address ||
-          [p.location?.city, p.location?.state].filter(Boolean).join(", "),
+          [p.location?.city, p.location?.state, getMarket(p.location?.countryCode).name].filter(Boolean).join(", "),
         coordinates:
           Number.isFinite(p.location?.lat) && Number.isFinite(p.location?.lng)
             ? [p.location.lat, p.location.lng]
@@ -67,10 +69,14 @@ export default function MapSearchPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams]);
+
+  useEffect(() => {
+    searchProperties();
+  }, [searchProperties]);
 
   const handlePropertySelect = (property: Pick<Property, "_id">) => {
-    window.location.href = `/listings/${property._id}`;
+    router.push(`/listings/${property._id}`);
   };
 
   return (
@@ -190,7 +196,8 @@ export default function MapSearchPage() {
                       {property.title || property.address}
                       </h3>
                       <p className="text-2xl font-bold text-blue-600 mb-3">
-                        ₦{property.price.toLocaleString()}
+                        {formatPrice(property.price, property.currency ?? "NGN", property.priceQualifier)}
+                        {formatPricePeriod(property.purpose, property.pricePeriod)}
                       </p>
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-4">
                         <div>🛏️ {property.bedrooms} beds</div>

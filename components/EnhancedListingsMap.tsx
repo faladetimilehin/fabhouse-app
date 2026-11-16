@@ -9,12 +9,16 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.heat/dist/leaflet-heat.js";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { MapPin, Loader } from "lucide-react";
+import { formatPrice, formatPricePeriod } from "@/lib/formatting";
 
 interface Property {
   _id: string;
   title?: string;
   address: string;
   price: number;
+  currency?: string;
+  priceQualifier?: string;
+  pricePeriod?: string;
   bedrooms: number;
   bathrooms: number;
   coordinates?: [number, number]; // [lat, lng], absent when a listing has not been geocoded
@@ -78,7 +82,7 @@ export default function EnhancedListingsMap({
         },
       }).addTo(mapRef.current);
     }
-  }, [mappedProperties, showHeatmap]);
+  }, [mappedProperties, properties.length, showHeatmap]);
 
   const customIcon = L.icon({
     iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
@@ -106,6 +110,18 @@ export default function EnhancedListingsMap({
         <div className="text-center">
           <MapPin className="text-gray-400 mx-auto mb-3" size={48} />
           <p className="text-gray-600 font-medium">No properties to display</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (mappedProperties.length === 0) {
+    return (
+      <div className="w-full h-[500px] bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
+        <div className="text-center px-6">
+          <MapPin className="text-gray-400 mx-auto mb-3" size={48} />
+          <p className="text-gray-700 font-medium">These listings don’t have map locations yet.</p>
+          <p className="text-gray-500 text-sm mt-1">You can still view them in List mode.</p>
         </div>
       </div>
     );
@@ -149,7 +165,8 @@ export default function EnhancedListingsMap({
                         {property.address}
                       </h3>
                       <p className="text-lg font-bold text-blue-600">
-                        ₦{property.price.toLocaleString()}
+                        {formatPrice(property.price, property.currency ?? "NGN", property.priceQualifier)}
+                        {formatPricePeriod(property.purpose, property.pricePeriod)}
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
