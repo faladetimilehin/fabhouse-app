@@ -21,6 +21,7 @@ Open http://localhost:3000.
 - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` / `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` — without these, the photo uploader shows a setup notice instead of failing. See `components/ImageUploader.tsx`.
 - `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — server-side only, needed so deleting or editing a listing also deletes its removed photos from Cloudinary storage. Without these, deletion still works, it just leaves orphaned images in Cloudinary.
 - `RESEND_API_KEY` — without this, emails (welcome, listing approved/rejected, inquiries, password reset) are logged to your terminal instead of sent. See `lib/email.ts`.
+- `CRON_SECRET` — required in Vercel to authenticate the daily listing expiry job (`/api/cron/listing-expiry`). Set a private random value in the Vercel project environment variables; reminders also require `RESEND_API_KEY` to send.
 - `PAYSTACK_SECRET_KEY` / `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` — only needed once `NEXT_PUBLIC_BILLING_ENABLED=true`.
 
 ### Seed sample data (optional, for local testing)
@@ -54,6 +55,7 @@ Playwright smoke tests covering homepage, browsing, pagination, registration, lo
 - `/dashboard/new` — post a new listing with photo upload
 - `/dashboard/edit/[id]` — edit an existing listing (same form as new, pre-filled)
 - `/dashboard/inquiries` — all inquiries across an agent's listings, with an inline reply box
+- `/dashboard/listings/expiry` — review and renew listings; a daily Vercel Cron sends expiry reminders, renews opted-in listings, and archives expired ones. Set `CRON_SECRET` and `RESEND_API_KEY` in Vercel to enable scheduled runs and email delivery. Existing active listings without expiry data get a 30-day grace period on the first run.
 - `/admin` — admin-only. Three tabs:
   - **Pending Review** — approve/reject new listings (owner gets emailed either way)
   - **All Listings** — every listing regardless of status, searchable and filterable

@@ -5,6 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { BILLING_ENABLED } from "@/config/features";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const BUY_LINKS = [
   { label: "Houses for Sale", href: "/listings?purpose=sale&type=house" },
@@ -101,6 +102,7 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3 text-sm">
+          <ThemeToggle />
           {session?.user ? (
             <>
               <Link href="/account" className="hidden sm:inline text-white/70 hover:text-gold transition">

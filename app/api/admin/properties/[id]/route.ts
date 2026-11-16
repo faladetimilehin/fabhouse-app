@@ -7,6 +7,7 @@ import User from "@/models/User";
 import { sendEmail, listingApprovedEmail, listingRejectedEmail } from "@/lib/email";
 import { notifyMatchingSearchAlerts } from "@/lib/searchAlerts";
 import { logAdminAction } from "@/lib/auditLog";
+import ListingExpiry from "@/models/ListingExpiry";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,6 +35,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (status === "active") {
+    await ListingExpiry.updateOne(
+      { property: property._id },
+      {
+        $setOnInsert: {
+          property: property._id,
+          owner: property.owner,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          isActive: true,
+        },
+      },
+      { upsert: true }
+    );
     notifyMatchingSearchAlerts(property as any).catch(() => {});
   }
 

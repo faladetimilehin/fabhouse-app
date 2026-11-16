@@ -5,6 +5,7 @@ import Providers from "./providers";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Toaster } from "react-hot-toast";
+import Script from "next/script";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -41,8 +42,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-cream text-navy flex flex-col min-h-screen`}>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`try { const saved = localStorage.getItem("fabhouse-theme"); const dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.classList.toggle("dark", dark); } catch {}`}
+        </Script>
         <Providers>
           <Navbar />
           <main className="flex-1">{children}</main>

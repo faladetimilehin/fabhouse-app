@@ -3,21 +3,60 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #faf6ee;
+  --foreground: #1b2a4a;
+  --surface: #ffffff;
+  --surface-muted: #f3f4f6;
+  --border: #e5e7eb;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root.dark {
+  color-scheme: dark;
+  --background: #0b1322;
+  --foreground: #e6edf7;
+  --surface: #121e32;
+  --surface-muted: #1a2940;
+  --border: #34445e;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.dark body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.dark .bg-white { background-color: var(--surface) !important; }
+.dark .bg-cream,
+.dark .bg-gray-50 { background-color: var(--background) !important; }
+.dark .bg-gray-100,
+.dark .bg-gray-200 { background-color: var(--surface-muted) !important; }
+.dark .bg-navy { background-color: #080f1c !important; }
+.dark .text-navy,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 { color: #e6edf7 !important; }
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark [class~="text-navy/70"],
+.dark [class~="text-navy/60"] { color: #b6c3d6 !important; }
+.dark .text-gold-dark { color: #edcc7a !important; }
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark [class~="border-navy/10"],
+.dark [class~="border-navy/15"] { border-color: var(--border) !important; }
+.dark .shadow-lg,
+.dark .shadow-xl { --tw-shadow-color: rgb(0 0 0 / 0.45); }
+
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
 }
 
 @layer utilities {

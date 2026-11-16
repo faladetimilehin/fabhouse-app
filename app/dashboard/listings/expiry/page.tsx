@@ -8,8 +8,10 @@ interface ExpiryListing {
   _id: string;
   property: {
     _id: string;
-    address: string;
+    title: string;
+    location?: { address?: string; city?: string; state?: string };
     price: number;
+    currency?: string;
   };
   expiresAt: string;
   isActive: boolean;
@@ -143,10 +145,10 @@ export default function ListingExpiryPage() {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">
-                        {listing.property.address}
+                        {listing.property.title || listing.property.location?.address || listing.property.location?.city || "Your listing"}
                       </h3>
                       <p className="text-gray-600 text-sm mt-1">
-                        ₦{listing.property.price.toLocaleString()}
+                        {listing.property.currency || "NGN"} {listing.property.price.toLocaleString()}
                       </p>
                       <div className="flex items-center gap-4 mt-3 text-sm">
                         <span className="text-gray-600">
