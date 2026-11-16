@@ -79,7 +79,7 @@ export default function Navbar() {
           🎉 Free to list and browse during launch — no charges, no card required.
         </div>
       )}
-      <nav className="bg-navy text-white px-6 py-4 flex items-center justify-between">
+      <nav className="bg-[#20342f] text-white px-6 py-4 flex items-center justify-between dark:bg-[#080f1c]">
         <Link href="/" className="text-xl font-bold tracking-wide shrink-0">
           FAB<span className="text-gold">HOUSE</span>
         </Link>
@@ -141,7 +141,7 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden bg-navy border-t border-white/10 px-6 py-4 flex flex-col gap-3 text-sm text-white">
+        <div className="md:hidden bg-[#20342f] border-t border-white/10 px-6 py-4 flex flex-col gap-3 text-sm text-white dark:bg-[#080f1c]">
           <p className="text-white/40 text-xs uppercase tracking-wider">Buy</p>
           {BUY_LINKS.map((l) => <Link key={l.href} href={l.href} onClick={() => setMobileOpen(false)} className="hover:text-gold">{l.label}</Link>)}
           <p className="text-white/40 text-xs uppercase tracking-wider mt-2">Rent</p>

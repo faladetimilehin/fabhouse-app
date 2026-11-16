@@ -1,13 +1,25 @@
 # Fabhouse
 
-Property listing platform for Nigeria and the diaspora. Built with Next.js 14 (App Router), TypeScript, MongoDB, NextAuth, and Tailwind.
+Property listing platform for Nigeria and the diaspora. Built with Next.js (App Router), TypeScript, MongoDB, NextAuth, and Tailwind.
 
 ## Screenshots
 
 <p align="center">
-  <img src="public/screenshots/home-light.png" alt="Fabhouse homepage in light mode" width="49%" />
-  <img src="public/screenshots/home-dark.png" alt="Fabhouse homepage in dark mode" width="49%" />
+  <img src="public/screenshots/home-light.jpg" alt="Fabhouse homepage in light mode" width="49%" />
+  <img src="public/screenshots/home-dark.jpg" alt="Fabhouse homepage in dark mode" width="49%" />
 </p>
+
+### Homes that feel like home
+
+Illustrative property photos used in the homepage design. They are not active Fabhouse listings.
+
+<p align="center">
+  <img src="public/images/homes/modern-villa.jpg" alt="Modern home under mature trees" width="32%" />
+  <img src="public/images/homes/city-home.jpg" alt="Contemporary home in daylight" width="32%" />
+  <img src="public/images/homes/garden-home.jpg" alt="Contemporary home at dusk" width="32%" />
+</p>
+
+Photos: [Unsplash image 1](https://images.unsplash.com/photo-1600585154340-be6161a56a0c), [image 2](https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde), [image 3](https://images.unsplash.com/photo-1600585154526-990dced4db0d). Used under the [Unsplash License](https://unsplash.com/license).
 
 ## Getting started
 
