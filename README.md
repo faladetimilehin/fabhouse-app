@@ -1,0 +1,209 @@
+# Fabhouse
+
+Property listing platform for Nigeria and the diaspora. Built with Next.js 14 (App Router), TypeScript, MongoDB, NextAuth, and Tailwind.
+
+## Getting started
+
+```bash
+npm install
+cp .env.example .env.local   # fill in the required values, see below
+npm run dev
+```
+
+Open http://localhost:3000.
+
+### Required env vars (app won't work without these)
+- `MONGODB_URI` — MongoDB Atlas connection string
+- `NEXTAUTH_SECRET` — any random string (`openssl rand -base64 32`)
+- `NEXTAUTH_URL` — `http://localhost:3000` locally, your real domain in production
+
+### Optional env vars (features degrade gracefully without them)
+- `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` / `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` — without these, the photo uploader shows a setup notice instead of failing. See `components/ImageUploader.tsx`.
+- `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — server-side only, needed so deleting or editing a listing also deletes its removed photos from Cloudinary storage. Without these, deletion still works, it just leaves orphaned images in Cloudinary.
+- `RESEND_API_KEY` — without this, emails (welcome, listing approved/rejected, inquiries, password reset) are logged to your terminal instead of sent. See `lib/email.ts`.
+- `PAYSTACK_SECRET_KEY` / `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` — only needed once `NEXT_PUBLIC_BILLING_ENABLED=true`.
+
+### Seed sample data (optional, for local testing)
+
+```bash
+npm run seed
+```
+
+Creates:
+- Admin login: `admin@fabhouse.ng` / `changeme123`
+- Agent login: `agent@fabhouse.ng` / `changeme123`
+- A few sample listings (one pending, so you can test `/admin`)
+- Two sample inquiries on the first active listing, so you can test `/dashboard/inquiries` and replying
+
+**Change these passwords / remove these accounts before going to production.**
+
+### Run tests
+
+```bash
+npm run test:e2e
+```
+
+Playwright smoke tests covering homepage, browsing, pagination, registration, login, and password reset. Requires a running MongoDB pointed to by `MONGODB_URI`.
+
+## How the site is organized
+
+- `/` — homepage with search
+- `/listings` — browse/filter listings, paginated (12 per page), partial/case-insensitive keyword search
+- `/listings/[id]` — single property page, with an inquiry form that emails the agent
+- `/dashboard` — agent/developer's own listings, paginated, with edit/delete actions and inquiry counts
+- `/dashboard/new` — post a new listing with photo upload
+- `/dashboard/edit/[id]` — edit an existing listing (same form as new, pre-filled)
+- `/dashboard/inquiries` — all inquiries across an agent's listings, with an inline reply box
+- `/admin` — admin-only. Three tabs:
+  - **Pending Review** — approve/reject new listings (owner gets emailed either way)
+  - **All Listings** — every listing regardless of status, searchable and filterable
+  - **Users** — every registered user, searchable by name/email, filterable by role. Admins can verify (adds the trust badge shown next to a name), suspend (blocks login immediately, doesn't delete their data or listings), or unsuspend any account. Admins can't suspend or demote themselves from this screen.
+- `/pricing` — public pricing page
+- `/billing/upgrade` — plan checkout via Paystack (inactive until billing is turned on)
+- `/forgot-password`, `/reset-password` — password reset via emailed token link (expires in 1 hour)
+
+## Nigeria-first, with diaspora buyers in mind
+
+Fabhouse defaults to the Nigerian market rather than the UK conventions it's visually inspired by:
+- **Currency** defaults to NGN everywhere (GBP/USD are there for diaspora-priced listings, not the default)
+- **Price qualifiers** include "Negotiable" — the term actually used in Nigerian listings — alongside the UK-style "Offers Over" / "Guide Price" options, in case you list UK property too
+- **Tenure** leads with C of O and Governor's Consent (the two that matter for Nigerian land) before Freehold/Leasehold
+- **Land size** is a free-text field ("2 plots", "5,000 sqm", "half hectare") rather than a forced sq ft number — Nigerian land is sold in plots and hectares as often as square meters, and forcing one unit would make agents enter meaningless numbers just to satisfy the form
+
+## Setting yourself up as the founding agent
+
+Since you're both the operator and, for now, the one posting real listings, here's the fastest path:
+
+1. Register a normal account at `/register` with role **Agent** (or Developer) — this is your real, public-facing account that buyers will see and message.
+2. Separately, get an **admin** account so you can review/approve listings. Easiest way: run `npm run seed` once against your real database — it creates `admin@fabhouse.ng` / `changeme123` — then **change that password immediately** from a database tool or by adding a change-password flow later.
+3. Log in as admin, go to `/admin/users`, find your agent account, and click **Verify** — this adds the trust badge next to your name everywhere it's shown, which matters a lot for diaspora buyers who can't inspect a listing in person.
+4. Log back into your agent account and post real listings from `/dashboard/new`.
+
+Admins can verify their own account from `/admin/users` (harmless — it only adds a badge) but can't suspend or change their own role from that screen, to avoid accidentally locking yourself out.
+
+## Rightmove-style listing details
+
+Listings now support the same core spec fields UK portals like Rightmove show:
+- **Price qualifiers** — Fixed, Offers Over, Offers in Region of, Guide Price, or Price on Application (POA)
+- **Price reduction tracking** — editing a listing to a lower price automatically stamps `priceReducedAt` and shows a "Reduced on DD/MM/YYYY" badge on the card and detail page
+- **Size** — entered in sq ft, auto-converted and displayed in both sq ft and sq m
+- **Tenure** — Freehold, Leasehold, or Nigeria-specific options (Governor's Consent, C of O)
+- **Postcode** — separate field, included in the full address shown on the detail page
+- **"Can you afford it?"** — a mortgage affordability calculator on the detail page (deposit %, rate, term, optional income check) for sale listings. It's a rough estimate with a disclaimer, not financial advice.
+- **For Sale / To Rent** — direct header nav links, not just a filter dropdown
+
+## Photos and videos
+
+Agents can upload both photos and walkthrough videos on a listing (`components/ImageUploader.tsx` and `components/VideoUploader.tsx`), using the same Cloudinary credentials — set up once, both work. Videos are capped at 100MB each, up to 3 per listing, and play inline on the detail page. A small "Video" badge shows on the listing card in `/listings` so buyers can spot video-equipped listings while browsing. Deleting or editing a listing cleans up removed videos from Cloudinary the same way it does for photos.
+
+## Listing status
+
+- **Pending → Active/Rejected** is admin-only, via `/admin` (the review workflow).
+- **Once a listing is Active**, its owner can self-manage status from `/dashboard` — a dropdown lets them mark it **Sold** (or **Rented**, if the listing is for rent), **Withdrawn**, or back to **Active** — no admin involvement needed. Owners can't touch status while a listing is still Pending or Rejected; that stays admin-controlled.
+- Non-active listings (sold/rented/withdrawn/pending/rejected) drop out of public `/listings` search automatically. If someone has a direct link to a sold/rented/withdrawn listing, the detail page shows a clear banner and hides the contact/inquiry options, instead of silently pretending it's still available.
+
+## What happens on delete / edit
+
+- **Deleting a listing** removes the database record and deletes its photos from Cloudinary (if `CLOUDINARY_API_KEY`/`CLOUDINARY_API_SECRET` are set), so storage doesn't quietly fill up with orphaned images.
+- **Editing a listing** and removing a photo does the same cleanup for just the removed photo — untouched photos stay.
+
+## Inquiries & replying
+
+Buyers message agents through the inquiry form on a listing page (not a raw `mailto:` link). Each message is:
+1. Saved to the database (`Inquiry` model)
+2. Emailed to the listing owner immediately
+
+Agents see all inquiries at `/dashboard/inquiries` (or filtered to one listing from the dashboard table) and can reply inline. If the buyer left an email address, the reply is emailed to them; if they left a phone number, the reply is saved for the agent's records but flagged as "not emailed" — with a nudge to call instead.
+
+## Search
+
+`/listings` and `/api/properties` use case-insensitive partial matching across title, description, city, state, and address — not MongoDB's stricter whole-word `$text` search. "lekk" or "3 bed lagos" will still surface relevant results instead of returning nothing.
+
+## Free now, paid later — how it works
+
+Everything related to charging lives behind **one flag**: `BILLING_ENABLED` in `config/features.ts`.
+
+- **Right now**, it's `false`. Every user gets the `UNRESTRICTED_PLAN` (unlimited listings, all features unlocked). The navbar and pricing page both show an honest "free during launch" message.
+- **The data model is already in place** — `User.planTier`, `Property.isFeatured` / `targetDiaspora`.
+- **The enforcement logic already exists** in `lib/billing.ts` (`canPerform()`, `getEffectivePlan()`) and is already called from `POST /api/properties`.
+- **The checkout flow already exists** — `/api/billing/initialize` and `/api/billing/verify` talk to Paystack and update the user's plan on successful payment. It returns 404 while billing is off.
+
+### When you're ready to start charging
+
+1. Set `NEXT_PUBLIC_BILLING_ENABLED=true`.
+2. Add `PAYSTACK_SECRET_KEY` and `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY`.
+3. Visit `/billing/upgrade` — it's already wired up.
+
+No listing, dashboard, or admin code needs to change when you flip the switch.
+
+## NDPR (Nigeria Data Protection Regulation) compliance
+
+- **`/privacy`** and **`/terms`** — real policy pages reflecting how Fabhouse actually collects and processes data, written with the Nigeria Data Protection Act 2023 in mind. **Both are flagged in-page as drafts that need a lawyer's review before going live** — especially retention periods, international transfer language, and NDPC/NITDA registration status, none of which I can determine on your behalf.
+- **Consent at registration** — signup requires explicitly agreeing to the Privacy Policy and Terms; this is enforced server-side (`consent: true` required by the API, not just a UI checkbox), and the acceptance is timestamped on the user record (`consentedToTermsAt`).
+- **`/account`** — self-service page for the two data subject rights that matter most day-to-day:
+  - **Download my data** (`/api/account/export`) — one-click JSON export of everything Fabhouse holds on that user: profile, listings, and inquiries received on their listings.
+  - **Delete my account** (`/api/account/delete`) — permanent deletion of the account, its listings, their hosted photos/videos (cleaned up from Cloudinary), and inquiries tied to those listings. Requires re-entering the password as a confirmation step, since it's irreversible.
+- **Footer** — links to Privacy/Terms and a data-protection note on every page.
+
+None of this replaces actual legal advice — it's the technical scaffolding NDPR requires (consent capture, access, portability, erasure), built and working. The legal text itself needs a professional review before you rely on it.
+
+## Recently added: discovery, trust, and growth features
+
+**WhatsApp inquiries** — the property detail page has a "Message on WhatsApp" button (`lib/whatsapp.ts`) using a `wa.me` deep link with a pre-filled message. No WhatsApp Business API or key needed.
+
+**Map view** — `/listings` has a Grid/Map toggle (`components/ListingsMap.tsx`, Leaflet + OpenStreetMap tiles, no API key required). Listings are auto-geocoded via OpenStreetMap's free Nominatim service (`lib/geocode.ts`) whenever created or when their address changes on edit — best-effort, never blocks the listing from saving if geocoding fails.
+
+**Open Graph tags** — property listing pages now generate real `<meta>` tags (title, description, image) via `generateMetadata()`, so links shared on WhatsApp, Twitter, etc. show a proper preview card instead of nothing.
+
+**Sitemap & robots.txt** — `/sitemap.xml` lists every active listing plus static pages (regenerated dynamically, not a static file), and `/robots.txt` points crawlers to it while blocking `/dashboard`, `/admin`, `/account`, and `/api/`.
+
+**Image optimization** — the public-facing images (property cards, detail page gallery) use `next/image` instead of raw `<img>` tags, with Cloudinary configured as an allowed remote image domain in `next.config.mjs`.
+
+**Agent public profiles** — `/agents/[id]` shows an agent's verification status, active listing count, sold/rented count, and all their live listings. Linked from the agent's name on every listing they own.
+
+**Saved listings (favorites)** — a heart icon on every listing card and detail page (`components/SaveListingButton.tsx`) lets signed-in buyers bookmark properties, viewable at `/saved`.
+
+**Saved search alerts** — an "Alert me" button on `/listings` saves the current filters (`models/SearchAlert.ts`); when an admin approves a new listing, it's checked against every saved alert and matching users get an email immediately (`lib/searchAlerts.ts`, triggered from the admin approval route — not a polling job). Manage/delete alerts at `/saved-searches`.
+
+**Agent document verification** — agents/developers can upload an ID or CAC certificate photo from `/account` to request the verified badge. Admins review submissions at `/admin/verifications` (new tab) and approve/reject with an optional reason emailed back to the applicant.
+
+## What NOT to assume about the above
+
+- Nominatim (the free geocoder) has a fair-use policy — fine at Fabhouse's current volume (one geocode per listing create/edit), but if listing volume gets very high, consider a paid geocoding provider instead.
+- The map view needs listings to actually have coordinates — older listings created before this feature won't show a pin until they're edited (which re-triggers geocoding) or manually backfilled.
+- Search alert emails go out immediately on admin approval, not in a batched digest — fine at low volume, worth revisiting if you get many saved alerts and many approvals per day.
+- Verification is a photo of a document reviewed by a human admin, not an automated ID-verification service — appropriate for a small team, not a substitute for real KYC tooling at scale.
+
+## Multi-currency search, audit log, and admin dashboard
+
+**Multi-currency price search** — every listing stores a denormalized `priceNGN` field (`lib/currency.ts`), computed at create time and recomputed on edit whenever price or currency changes. Search filtering (`/listings` and `/api/properties`) compares on `priceNGN`, so a buyer filtering "under £200,000" correctly matches listings priced in NGN or USD too, not just GBP. Saved search alerts use the same normalized comparison. The exchange rates are static and commented as needing periodic manual updates — they're only used to make search comparable across currencies, never for anything financial/transactional.
+
+**Admin audit log** — every admin action that changes something (approve/reject a listing, verify/suspend a user, approve/reject a verification document) is now recorded in `models/AuditLog.ts` via `lib/auditLog.ts`, and viewable at `/admin/audit-log` with filtering by action type. Logging is best-effort and never blocks the actual admin action if it fails.
+
+**Admin stats dashboard** — `/admin` is now an overview page (`/api/admin/stats`) showing pending-review counts, pending verifications, admin actions this week, total users by role, and total listings by status — all clickable through to the relevant filtered list. The old pending-review queue moved to `/admin/pending`.
+
+## Password & session security
+
+- **Passwords** are hashed with bcrypt (`bcryptjs`, cost factor 10) before being stored — the plaintext password is never saved anywhere, and hashing is one-way (can't be reversed to recover the password).
+- **Sessions** use signed JWTs (via NextAuth, `session: { strategy: "jwt" }`) — this is a separate concern from password storage. Hash passwords, sign session tokens; that's the correct split and it's already in place.
+- **Suspended accounts** are blocked at the `authorize()` step in `lib/auth.ts` — a suspended user can't get a session even with the correct password.
+
+## Rate limiting
+
+MongoDB-backed (not in-memory, so it survives serverless cold starts) via `lib/rateLimit.ts`:
+- Registration: 8 accounts per IP per hour
+- Inquiries: 5 messages per IP per 10 minutes
+- Forgot-password requests: 5 per IP per hour
+
+## Deploying (Vercel + MongoDB Atlas — recommended, both have free tiers)
+
+1. **MongoDB Atlas**: create a free cluster at mongodb.com/atlas → Database Access (create a user) → Network Access (allow 0.0.0.0/0) → copy the connection string into `MONGODB_URI`.
+2. **Push this project to a GitHub repo.**
+3. **Vercel**: import the repo at vercel.com/new → add all env vars from `.env.local` in Project Settings → Environment Variables → deploy.
+4. Update `NEXTAUTH_URL` to your real Vercel URL and redeploy.
+5. Run `npm run seed` locally pointed at your **production** `MONGODB_URI` if you want the admin account to exist in production too — or register normally and manually flip a user's `role` to `admin` in Atlas's data browser.
+
+## Still to build
+
+- Diaspora-specific landing page / campaign placement logic
+- Server-side validation / moderation on uploaded images (currently trusts the unsigned Cloudinary upload)
