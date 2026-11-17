@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowDownRight, ArrowRight, MapPin, Search, ShieldCheck } from "lucide-react";
 import { MARKETS } from "@/config/markets";
+import RecommendationsSection from "@/components/RecommendationsSection";
 
 const homeInspiration = [
   { image: "/images/homes/modern-villa.jpg", alt: "Contemporary home framed by a mature shade tree", name: "Room to make your own", type: "Houses", href: "/listings?type=house" },
@@ -89,6 +90,8 @@ export default function HomePage() {
           <p className="mt-4 text-xs text-[#7b8178] dark:text-[#94a3b8]">A little inspiration to get you started. Photos are illustrative; browse current listings for actual properties.</p>
         </div>
       </section>
+
+      <RecommendationsSection />
 
       <section className="bg-[#eae3d7] px-5 py-14 dark:bg-[#121e32] sm:px-8 sm:py-20">
         <div className="mx-auto flex max-w-7xl flex-col gap-7 md:flex-row md:items-center md:justify-between">
