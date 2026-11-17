@@ -2,6 +2,10 @@
 
 Property discovery and listing platform growing across African markets and beyond. Built with Next.js (App Router), TypeScript, MongoDB, NextAuth, and Tailwind.
 
+## Live demo
+
+[View Fabhouse on Vercel](https://fabhouse-app.vercel.app/)
+
 ## Screenshots
 
 <p align="center">
@@ -37,8 +41,8 @@ Open http://localhost:3000.
 - `NEXTAUTH_URL` — `http://localhost:3000` locally, your real domain in production
 
 ### Optional env vars (features degrade gracefully without them)
-- `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` / `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` — without these, the photo uploader shows a setup notice instead of failing. See `components/ImageUploader.tsx`.
-- `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — server-side only, needed so deleting or editing a listing also deletes its removed photos from Cloudinary storage. Without these, deletion still works, it just leaves orphaned images in Cloudinary.
+- `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` / `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` — required for photo/video uploads. Configure a signed preset with allowed media formats and 10 MB photo / 100 MB video file-size limits; disable any old unsigned listing-upload preset.
+- `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — server-side only; required to sign uploads, verify media before it can be attached to a listing, and delete removed assets. Without these, listing media uploads cannot be saved.
 - `RESEND_API_KEY` — without this, emails (welcome, listing approved/rejected, inquiries, password reset) are logged to your terminal instead of sent. See `lib/email.ts`.
 - `CRON_SECRET` — required in Vercel to authenticate the daily listing expiry job (`/api/cron/listing-expiry`). Set a private random value in the Vercel project environment variables; reminders also require `RESEND_API_KEY` to send.
 - `PAYSTACK_SECRET_KEY` — only needed once `NEXT_PUBLIC_BILLING_ENABLED=true`. Configure `/api/billing/webhook` in Paystack; use `PAYSTACK_WEBHOOK_SECRET` if Paystack gives you a separate versioned signing secret (otherwise the endpoint supports the legacy signature using `PAYSTACK_SECRET_KEY`).
@@ -115,7 +119,7 @@ Listings now support the same core spec fields UK portals like Rightmove show:
 
 ## Photos and videos
 
-Agents can upload both photos and walkthrough videos on a listing (`components/ImageUploader.tsx` and `components/VideoUploader.tsx`), using the same Cloudinary credentials — set up once, both work. Videos are capped at 100MB each, up to 3 per listing, and play inline on the detail page. A small "Video" badge shows on the listing card in `/listings` so buyers can spot video-equipped listings while browsing. Deleting or editing a listing cleans up removed videos from Cloudinary the same way it does for photos.
+Agents can upload JPG, PNG, or WebP photos (up to 10 MB each) and MP4, MOV, or WebM walkthrough videos (up to 100 MB each, 3 per listing) through server-signed Cloudinary uploads into user-specific folders. Listing APIs verify the asset's Cloudinary location, media type, and size before saving it. Changing listing media sends the listing back to pending review; admin approval requires a manual review of all photos/videos. This moderation is not proof of property ownership or listing accuracy. Videos play inline on the detail page, with a "Video" badge on listing cards. Deleting or editing a listing cleans up removed videos from Cloudinary the same way it does for photos.
 
 ## Listing status
 
@@ -227,12 +231,12 @@ MongoDB-backed (not in-memory, so it survives serverless cold starts) via `lib/r
 
 ## Still to build
 
-- **Africa market rollout:** the listing model and search now carry country and local currency for Nigeria, Ghana, Kenya, and South Africa; country/city metadata and sitemap routes are country-aware. The UI can accept listings in these markets, but this is technical readiness, not proof that Fabhouse has vetted inventory or support operations there. Open each country city by city after confirming local moderation, address conventions, consumer rules, tax, and customer support.
-- **Short-let stays have a pre-payment request flow.** Hosts can block dates; guests can see blocked/held dates and request a stay; host acceptance places a 24-hour unpaid hold; either party can cancel before payment. This is not a confirmed booking and Fabhouse does not collect stay payments, issue refunds, or pay hosts.
-- **Paid short-let launch is blocked on operations and approvals:** local check-in rules, calendar/time-zone and offline booking process, guest/host cancellation and refund policy, checkout, provider-approved settlement and reconciliation, response coverage, and a successful end-to-end incident/refund/payout drill. See [`docs/market-launch-readiness.md`](docs/market-launch-readiness.md) for the gate and decision record. Do not treat a transfer split as escrow or delayed host payout.
+- **Africa market rollout:** the listing model and search now carry country and local currency for Nigeria, Ghana, Kenya, and South Africa; country/city metadata and sitemap routes are country-aware. The UI can accept listings in these markets, but this is technical readiness, not proof that Fabhouse has verified actual local inventory or support operations. Verify supply and local operations city by city before launch.
+- **Short-let stays have a pre-payment request flow only.** Hosts can block dates; guests can see blocked/held dates and request a stay; host acceptance places a 24-hour unpaid hold; either party can cancel before payment. These are requests and unpaid holds, not confirmed bookings. Stay checkout, paid cancellation/refund handling, and host payouts are not implemented.
+- **Paid short-let launch is blocked on market-specific rules and a verified payment and settlement process:** approve local check-in rules, calendar/time-zone and offline booking processes, guest/host cancellation and refund policies, checkout, provider-approved settlement and reconciliation, and complete an end-to-end incident/refund/payout drill. Assign support staff and response coverage. See [`docs/market-launch-readiness.md`](docs/market-launch-readiness.md) for the gate and decision record. Do not treat a transfer split as escrow or delayed host payout.
 - **Realistic revenue order:** keep ordinary buyer/renter discovery free while building local supply and response rates; test optional agent visibility and team tools against measurable leads; then earn a clearly disclosed booking/service fee on completed short stays after payment, cancellation, refund, and host-support operations are working. Do not sell verification badges or charge guests before a booking can be fulfilled. The interview plan and per-market go/no-go checklist are in [`docs/market-launch-readiness.md`](docs/market-launch-readiness.md).
-- **Agent plan payments:** the Paystack path uses market-specific configured currency and price, checks the signed-in account and stored amount, stores payment references idempotently, extends access by one month, and accepts signed webhooks. Plans are one-time access, not auto-renewing subscriptions. Billing remains disabled by default. Only Nigeria has draft prices; validate them with agents and configure local prices, support, receipts, terms, and payment policies before opening any other market.
+- **Agent plan payments:** the Paystack path uses market-specific configured currency and price, checks the signed-in account and stored amount, stores payment references idempotently, extends access by one month, and accepts signed webhooks. Plans are one-time access, not auto-renewing subscriptions. Billing remains disabled by default. Only Nigeria has draft prices; validate them through agent interviews and configure approved local prices, support, receipts, terms, and payment policies before opening any other market.
 - **Featured listings:** paid-plan entitlements are connected to a feature/unfeature action with plan limits. This is part of the optional agent value proposition; confirm the plans and slot limits against real agent usage before enabling billing.
 - Diaspora-specific landing page / campaign placement logic
-- Server-side validation and moderation for listing photos/videos (listing media currently uses unsigned Cloudinary upload presets)
-- Market-by-market legal review and localized privacy/terms before enabling transactions or actively launching each country
+- Configure and verify the production Cloudinary signed upload preset's allowed formats and file-size limits, and disable the legacy unsigned listing-upload preset; server-side listing validation and required manual admin media review are implemented
+- Verify actual local inventory, assign support staff and response coverage, and get qualified local counsel to review terms and privacy pages market by market before enabling transactions or actively launching each country

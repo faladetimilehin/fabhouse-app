@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import VideoListing from "@/models/VideoListing";
 import Property from "@/models/Property";
 import mongoose from "mongoose";
+import { validateListingMedia } from "@/lib/listingMedia";
 
 /**
  * GET - Fetch videos for a property or get trending videos
@@ -71,13 +72,22 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    const userId = (session.user as any).id;
+    const mediaValidation = await validateListingMedia({
+      ownerId: userId,
+      videos: [videoUrl],
+      images: thumbnailUrl ? [thumbnailUrl] : [],
+    });
+    if (!mediaValidation.valid) {
+      return NextResponse.json({ error: mediaValidation.error }, { status: mediaValidation.status });
+    }
 
     await dbConnect();
-    const userId = new mongoose.Types.ObjectId((session.user as any).id);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
     const propId = new mongoose.Types.ObjectId(propertyId);
 
     // Verify ownership
-    const property = await Property.findOne({ _id: propId, owner: userId });
+    const property = await Property.findOne({ _id: propId, owner: userObjectId });
     if (!property) {
       return NextResponse.json(
         { error: "Property not found or not owned by you" },
@@ -87,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     const video = await VideoListing.create({
       property: propId,
-      owner: userId,
+      owner: userObjectId,
       title,
       description,
       videoUrl,

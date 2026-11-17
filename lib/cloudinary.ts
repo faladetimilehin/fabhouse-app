@@ -2,6 +2,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { randomUUID } from "crypto";
 
 const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 const apiKey = process.env.CLOUDINARY_API_KEY;
 const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
@@ -72,6 +73,37 @@ export async function uploadPrivateVerificationDocument(userId: string, file: Fi
     publicId: result.public_id,
     format: result.format,
     resourceType: resourceType as "image" | "raw",
+  };
+}
+
+export function createListingUploadSignature(userId: string, resourceType: "image" | "video") {
+  if (!configured || !cloudName || !uploadPreset || !apiKey || !apiSecret) {
+    throw new Error("Listing media storage is not configured.");
+  }
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = resourceType === "image"
+    ? `fabhouse-listings/${userId}`
+    : `fabhouse-listings/${userId}/videos`;
+  const publicId = randomUUID();
+  const params = {
+    asset_folder: folder,
+    folder,
+    overwrite: false,
+    public_id: publicId,
+    public_id_prefix: folder,
+    timestamp,
+    upload_preset: uploadPreset,
+    unique_filename: false,
+    use_filename: false,
+  };
+
+  return {
+    cloudName,
+    apiKey,
+    resourceType,
+    ...params,
+    signature: cloudinary.utils.api_sign_request(params, apiSecret),
   };
 }
 

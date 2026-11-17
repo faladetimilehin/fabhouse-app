@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { UploadCloud, X, Loader2, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
+import { uploadListingMedia } from "@/lib/cloudinaryUpload";
 
 interface ImageUploaderProps {
   images: string[];
@@ -55,27 +56,24 @@ export default function ImageUploader({ images, onChange, maxImages = 8, listing
     if (filesToUpload.length < files.length) {
       toast.error(`Only ${maxImages} images allowed — uploading the first ${filesToUpload.length}.`);
     }
+    const invalidFiles = filesToUpload.filter((file) =>
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024
+    );
+    if (invalidFiles.length > 0) {
+      toast.error("Photos must be JPG, PNG, or WebP files under 10 MB.");
+    }
+    const validFiles = filesToUpload.filter((file) =>
+      ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 10 * 1024 * 1024
+    );
 
     setUploading(true);
     const uploaded: string[] = [];
 
-    for (const file of filesToUpload) {
+    for (const file of validFiles) {
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", uploadPreset!);
-        formData.append("folder", "fabhouse-listings");
-
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) throw new Error("Upload failed");
-        const data = await res.json();
-        uploaded.push(data.secure_url);
-      } catch {
-        toast.error(`Couldn't upload ${file.name}.`);
+        uploaded.push(await uploadListingMedia(file, "image"));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : `Couldn't upload ${file.name}.`);
       }
     }
 
@@ -152,7 +150,7 @@ export default function ImageUploader({ images, onChange, maxImages = 8, listing
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         multiple
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}

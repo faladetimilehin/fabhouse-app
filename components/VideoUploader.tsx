@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Video, X, Loader2, Film } from "lucide-react";
 import toast from "react-hot-toast";
+import { uploadListingMedia } from "@/lib/cloudinaryUpload";
 
 interface VideoUploaderProps {
   videos: string[];
@@ -12,10 +13,8 @@ interface VideoUploaderProps {
 }
 
 /**
- * Uploads video walkthroughs directly to Cloudinary from the browser,
- * same unsigned-upload pattern as ImageUploader but pointed at Cloudinary's
- * video endpoint. Reuses the same cloud name / upload preset — no extra
- * setup needed beyond what ImageUploader already requires.
+ * Uploads video walkthroughs directly to Cloudinary using a short-lived,
+ * server-generated signature, keeping the Cloudinary API secret server-side.
  */
 export default function VideoUploader({ videos, onChange, maxVideos = 3, maxSizeMb = 100 }: VideoUploaderProps) {
   const [uploading, setUploading] = useState(false);
@@ -43,29 +42,23 @@ export default function VideoUploader({ videos, onChange, maxVideos = 3, maxSize
     if (oversized.length > 0) {
       toast.error(`${oversized.map((f) => f.name).join(", ")} is over the ${maxSizeMb}MB limit and won't be uploaded.`);
     }
-    const validFiles = filesToUpload.filter((f) => f.size <= maxSizeMb * 1024 * 1024);
+    const allowedTypes = ["video/mp4", "video/quicktime", "video/webm"];
+    const invalidTypes = filesToUpload.filter((file) => !allowedTypes.includes(file.type));
+    if (invalidTypes.length > 0) {
+      toast.error("Videos must be MP4, MOV, or WebM files.");
+    }
+    const validFiles = filesToUpload.filter((file) =>
+      file.size <= maxSizeMb * 1024 * 1024 && allowedTypes.includes(file.type)
+    );
 
     setUploading(true);
     const uploaded: string[] = [];
 
     for (const file of validFiles) {
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", uploadPreset!);
-        formData.append("folder", "fabhouse-listings/videos");
-
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) throw new Error("Upload failed");
-        const data = await res.json();
-        uploaded.push(data.secure_url);
+        uploaded.push(await uploadListingMedia(file, "video"));
       } catch (err) {
-        console.error(err);
-        toast.error(`Couldn't upload ${file.name}.`);
+        toast.error(err instanceof Error ? err.message : `Couldn't upload ${file.name}.`);
       }
     }
 
@@ -120,7 +113,7 @@ export default function VideoUploader({ videos, onChange, maxVideos = 3, maxSize
       <input
         ref={inputRef}
         type="file"
-        accept="video/*"
+        accept="video/mp4,video/quicktime,video/webm"
         multiple
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}

@@ -10,6 +10,7 @@ import { registerImageFingerprints, registerAddressFingerprint, removeListingFin
 import StayBooking from "@/models/StayBooking";
 import StayNight from "@/models/StayNight";
 import StaySupportTicket from "@/models/StaySupportTicket";
+import { validateListingMedia } from "@/lib/listingMedia";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,6 +39,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json({ error: "Invalid listing update." }, { status: 400 });
   }
+  if (
+    (body.images !== undefined && !Array.isArray(body.images)) ||
+    (body.videos !== undefined && !Array.isArray(body.videos))
+  ) {
+    return NextResponse.json({ error: "Listing photos and videos must be arrays." }, { status: 400 });
+  }
+  if (body.images !== undefined || body.videos !== undefined) {
+    const mediaValidation = await validateListingMedia({
+      ownerId: property.owner.toString(),
+      images: body.images ?? property.images ?? [],
+      videos: body.videos ?? property.videos ?? [],
+    });
+    if (!mediaValidation.valid) {
+      return NextResponse.json({ error: mediaValidation.error }, { status: mediaValidation.status });
+    }
+  }
+
   // Review evidence is written only by the protected admin review endpoint.
   delete body.reviewEvidence;
 
@@ -154,10 +172,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     body.amenities !== undefined && JSON.stringify(body.amenities) !== JSON.stringify(property.amenities ?? []),
     Boolean(locationChanged),
   ].some(Boolean);
-  if (shortletReviewChanged) body.status = "pending";
+  const mediaChanged = [
+    body.images !== undefined && JSON.stringify(body.images) !== JSON.stringify(property.images ?? []),
+    body.videos !== undefined && JSON.stringify(body.videos) !== JSON.stringify(property.videos ?? []),
+  ].some(Boolean);
+  if (shortletReviewChanged || mediaChanged) body.status = "pending";
 
   const updated = await Property.findByIdAndUpdate(id, body, { new: true });
-  if (updated && shortletReviewChanged) {
+  if (updated && (shortletReviewChanged || mediaChanged)) {
     await Property.updateOne({ _id: id }, { $unset: { reviewEvidence: 1 } });
   }
 

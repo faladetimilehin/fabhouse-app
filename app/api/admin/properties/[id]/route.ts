@@ -37,6 +37,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const current = await Property.findById(id);
   if (!current) return NextResponse.json({ error: "Not found." }, { status: 404 });
   if (current.status !== "pending") return NextResponse.json({ error: "This listing is no longer awaiting review." }, { status: 409 });
+  if (status === "active" && (!reviewEvidence?.mediaCompared || !reviewEvidence.notes || reviewEvidence.notes.length < 10)) {
+    return NextResponse.json({ error: "Review the listing media and record at least 10 characters of review notes before approval." }, { status: 400 });
+  }
   if (status === "active" && current.purpose === "shortlet") {
     const checks = reviewEvidence && [
       reviewEvidence.locationConfirmed,
@@ -44,18 +47,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       reviewEvidence.mediaCompared,
       reviewEvidence.chargesAndCapacityConfirmed,
     ].every(Boolean);
-    if (!checks || !reviewEvidence?.notes || reviewEvidence.notes.length < 10) {
+    if (!checks) {
       return NextResponse.json({ error: "Complete all short-stay checks and add a note describing the evidence reviewed." }, { status: 400 });
     }
   }
   const update: Record<string, any> = { status };
-  if (status === "active" && current.purpose === "shortlet" && reviewEvidence) {
+  if (status === "active" && reviewEvidence) {
     update.reviewEvidence = {
       checks: {
-        locationConfirmed: reviewEvidence.locationConfirmed,
-        authorityToLetReviewed: reviewEvidence.authorityToLetReviewed,
+        locationConfirmed: reviewEvidence.locationConfirmed ?? false,
+        authorityToLetReviewed: reviewEvidence.authorityToLetReviewed ?? false,
         mediaCompared: reviewEvidence.mediaCompared,
-        chargesAndCapacityConfirmed: reviewEvidence.chargesAndCapacityConfirmed,
+        chargesAndCapacityConfirmed: reviewEvidence.chargesAndCapacityConfirmed ?? false,
       },
       notes: reviewEvidence.notes,
       checkedBy: (session!.user as any).id,

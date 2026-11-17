@@ -11,6 +11,7 @@ import { geocodeAddress } from "@/lib/geocode";
 import { convertToNGN } from "@/lib/currency";
 import { getMarket, MARKETS } from "@/config/markets";
 import { registerImageFingerprints, registerAddressFingerprint, hashImageUrl, hashAddress } from "@/lib/fingerprint";
+import { validateListingMedia } from "@/lib/listingMedia";
 
 const createSchema = z.object({
   title: z.string().min(5),
@@ -34,8 +35,8 @@ const createSchema = z.object({
   landSize: z.string().optional(),
   tenure: z.enum(["freehold", "leasehold", "governors_consent", "c_of_o", "not_applicable"]).optional(),
   amenities: z.array(z.string()).optional(),
-  images: z.array(z.string().url()).optional(),
-  videos: z.array(z.string().url()).optional(),
+  images: z.array(z.string().url()).max(8).optional(),
+  videos: z.array(z.string().url()).max(3).optional(),
 }).superRefine((value, ctx) => {
   if (value.purpose === "sale" && value.pricePeriod) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pricePeriod"], message: "Sale listings cannot have a recurring price period." });
@@ -143,6 +144,11 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = (session.user as any).id;
+  const mediaValidation = await validateListingMedia({ ...parsed.data, ownerId: userId });
+  if (!mediaValidation.valid) {
+    return NextResponse.json({ error: mediaValidation.error }, { status: mediaValidation.status });
+  }
+
   const dbUser = await User.findById(userId);
 
   const activeListingCount = await Property.countDocuments({

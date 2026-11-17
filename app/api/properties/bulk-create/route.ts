@@ -9,6 +9,7 @@ import User from "@/models/User";
 import { canPerform } from "@/lib/billing";
 import { convertToNGN } from "@/lib/currency";
 import { hashAddress, hashImageUrl, registerAddressFingerprint, registerImageFingerprints } from "@/lib/fingerprint";
+import { validateListingMediaBatch } from "@/lib/listingMedia";
 
 export async function POST(req: NextRequest) {
   try {
@@ -102,6 +103,17 @@ export async function POST(req: NextRequest) {
         isFeatured: false,
       };
     });
+
+    const mediaValidation = await validateListingMediaBatch(
+      propertiesToCreate.map((property) => ({
+        ownerId: userId.toString(),
+        images: property.images,
+        videos: property.videos,
+      }))
+    );
+    if (!mediaValidation.valid) {
+      return NextResponse.json({ error: mediaValidation.error }, { status: mediaValidation.status });
+    }
 
     const created = await Property.insertMany(propertiesToCreate);
     for (const property of created as any[]) {

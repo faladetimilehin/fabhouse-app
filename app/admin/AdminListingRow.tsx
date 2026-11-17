@@ -22,10 +22,10 @@ interface Props {
   };
 }
 
-const REVIEW_CHECKS = [
+const MEDIA_REVIEW_CHECK = ["mediaCompared", "Reviewed all photos and videos for relevance, apparent authenticity, and inappropriate content"] as const;
+const SHORTLET_REVIEW_CHECKS = [
   ["locationConfirmed", "Confirmed the property's location with the host"],
   ["authorityToLetReviewed", "Reviewed evidence the host is authorized to let it"],
-  ["mediaCompared", "Compared listing photos with a live walkthrough or documented visit"],
   ["chargesAndCapacityConfirmed", "Confirmed capacity, check-in/out, fees, utilities and house rules"],
 ] as const;
 
@@ -35,14 +35,28 @@ export default function AdminListingRow({ property }: Props) {
   const [checks, setChecks] = useState<Record<string, boolean>>({});
   const [evidenceNotes, setEvidenceNotes] = useState("");
   const isShortlet = property.purpose === "shortlet";
-  const readyToApprove = !isShortlet || REVIEW_CHECKS.every(([key]) => checks[key]) && evidenceNotes.trim().length >= 10;
+  const readyToApprove =
+    Boolean(checks.mediaCompared) &&
+    evidenceNotes.trim().length >= 10 &&
+    (!isShortlet || SHORTLET_REVIEW_CHECKS.every(([key]) => checks[key]));
 
   async function updateStatus(status: "active" | "rejected") {
     setLoading(true);
     const res = await fetch(`/api/admin/properties/${property._id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, ...(status === "active" && isShortlet ? { reviewEvidence: { ...checks, notes: evidenceNotes } } : {}) }),
+      body: JSON.stringify({
+        status,
+        ...(status === "active" ? {
+          reviewEvidence: {
+            locationConfirmed: Boolean(checks.locationConfirmed),
+            authorityToLetReviewed: Boolean(checks.authorityToLetReviewed),
+            mediaCompared: Boolean(checks.mediaCompared),
+            chargesAndCapacityConfirmed: Boolean(checks.chargesAndCapacityConfirmed),
+            notes: evidenceNotes,
+          },
+        } : {}),
+      }),
     });
     const data = await res.json().catch(() => ({}));
     setLoading(false);
@@ -70,14 +84,21 @@ export default function AdminListingRow({ property }: Props) {
       </div>
       <p className="mt-3 max-w-3xl text-xs text-navy/60 line-clamp-3">{property.description}</p>
       <p className="mt-1 text-xs text-navy/45">{property.images.length} photo(s) · open the listing above to inspect its photos and full details.</p>
-      {isShortlet && <div className="mt-4 rounded-md border border-gold/30 bg-gold/5 p-3">
-        <p className="text-sm font-semibold text-navy">Short-stay evidence review</p>
-        <p className="mt-1 text-xs text-navy/60">Record only checks you completed. This moderation is not a title guarantee or formal property inspection.</p>
-        <div className="mt-2 grid gap-2">{REVIEW_CHECKS.map(([key, label]) => <label key={key} className="flex items-start gap-2 text-xs text-navy/75"><input type="checkbox" checked={Boolean(checks[key])} onChange={(event) => setChecks((previous) => ({ ...previous, [key]: event.target.checked }))} className="mt-0.5" />{label}</label>)}</div>
-        <label className="mt-3 block text-xs text-navy/65">Evidence reference, review method/date and unresolved issues (do not enter sensitive ID numbers)
+      <div className="mt-4 rounded-md border border-gold/30 bg-gold/5 p-3">
+        <p className="text-sm font-semibold text-navy">Listing media review</p>
+        <p className="mt-1 text-xs text-navy/60">Open and inspect every photo and video. This manual review does not prove property ownership, condition, or listing accuracy.</p>
+        <label className="mt-2 flex items-start gap-2 text-xs text-navy/75">
+          <input type="checkbox" checked={Boolean(checks.mediaCompared)} onChange={(event) => setChecks((previous) => ({ ...previous, mediaCompared: event.target.checked }))} className="mt-0.5" />
+          {MEDIA_REVIEW_CHECK[1]}
+        </label>
+        {isShortlet && <>
+          <p className="mt-4 text-sm font-semibold text-navy">Additional short-stay evidence checks</p>
+          <div className="mt-2 grid gap-2">{SHORTLET_REVIEW_CHECKS.map(([key, label]) => <label key={key} className="flex items-start gap-2 text-xs text-navy/75"><input type="checkbox" checked={Boolean(checks[key])} onChange={(event) => setChecks((previous) => ({ ...previous, [key]: event.target.checked }))} className="mt-0.5" />{label}</label>)}</div>
+        </>}
+        <label className="mt-3 block text-xs text-navy/65">Review method, date, evidence reference, and unresolved issues (do not enter sensitive ID numbers)
           <textarea value={evidenceNotes} onChange={(event) => setEvidenceNotes(event.target.value)} maxLength={1000} className="mt-1 min-h-16 w-full rounded border border-navy/15 px-3 py-2 text-sm" placeholder="Example: live video walkthrough, host call, listing photos compared; follow-up needed on generator hours." />
         </label>
-      </div>}
+      </div>
     </div>
   );
 }
