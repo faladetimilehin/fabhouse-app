@@ -3,13 +3,25 @@
  * so you have something to look at locally.
  *
  * Run with: node scripts/seed.js
- * (requires MONGODB_URI to be set in your environment or .env.local)
+ * (requires MONGODB_URI, SEED_ADMIN_PASSWORD, and SEED_AGENT_PASSWORD in .env.local)
  */
 require("dotenv").config({ path: ".env.local" });
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
 async function seed() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("The sample-data seed script cannot run in production.");
+  }
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const agentPassword = process.env.SEED_AGENT_PASSWORD;
+  if (!adminPassword || adminPassword.length < 12 || !agentPassword || agentPassword.length < 12) {
+    throw new Error("Set unique SEED_ADMIN_PASSWORD and SEED_AGENT_PASSWORD values of at least 12 characters in .env.local.");
+  }
+  if (adminPassword === agentPassword) {
+    throw new Error("Use different passwords for the seeded admin and agent accounts.");
+  }
+
   await mongoose.connect(process.env.MONGODB_URI);
 
   // Mirrors lib/currency.ts — kept in sync manually since this script
@@ -32,12 +44,12 @@ async function seed() {
     admin = await User.create({
       name: "Fabhouse Admin",
       email: adminEmail,
-      passwordHash: await bcrypt.hash("changeme123", 10),
+      passwordHash: await bcrypt.hash(adminPassword, 10),
       role: "admin",
       isVerified: true,
       planTier: "free",
     });
-    console.log("Created admin user:", adminEmail, "/ password: changeme123");
+    console.log("Created admin user:", adminEmail);
   } else {
     console.log("Admin user already exists.");
   }
@@ -48,13 +60,13 @@ async function seed() {
     agent = await User.create({
       name: "Chidi Realty",
       email: agentEmail,
-      passwordHash: await bcrypt.hash("changeme123", 10),
+      passwordHash: await bcrypt.hash(agentPassword, 10),
       role: "agent",
       isVerified: true,
       phone: "+234 800 000 0000",
       planTier: "free",
     });
-    console.log("Created agent user:", agentEmail, "/ password: changeme123");
+    console.log("Created agent user:", agentEmail);
   }
 
   const existingListings = await Property.countDocuments({ owner: agent._id });

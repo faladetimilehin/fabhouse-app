@@ -28,13 +28,21 @@ export interface MarketPlanPrice {
   currency: MarketCurrency;
 }
 
-// Only Nigeria has an initial price proposal. Add prices for another market
-// after local agents validate willingness to pay and payment terms.
-export const MARKET_PLAN_PRICES: Record<MarketCode, Partial<Record<PaidPlanTier, MarketPlanPrice>>> = {
+// Proposals are kept separate from payable prices so a global billing flag
+// cannot accidentally expose an unvalidated price.
+export const DRAFT_MARKET_PLAN_PRICES: Record<MarketCode, Partial<Record<PaidPlanTier, MarketPlanPrice>>> = {
   NG: {
     starter: { amount: 15_000, currency: "NGN" },
     professional: { amount: 50_000, currency: "NGN" },
   },
+  GH: {},
+  KE: {},
+  ZA: {},
+};
+
+// Add prices here only after market pricing, payment, and support are approved.
+export const MARKET_PLAN_PRICES: Record<MarketCode, Partial<Record<PaidPlanTier, MarketPlanPrice>>> = {
+  NG: {},
   GH: {},
   KE: {},
   ZA: {},

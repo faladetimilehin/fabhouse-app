@@ -4,6 +4,7 @@ import { dbConnect } from "@/lib/mongodb";
 import PlanPayment from "@/models/PlanPayment";
 import User from "@/models/User";
 import { getMarket } from "@/config/markets";
+import { getMarketPlanPrice } from "@/config/features";
 
 type PaystackTransaction = {
   id?: number;
@@ -44,9 +45,13 @@ export async function activateVerifiedPlanPayment(reference: string, transaction
     const user = await User.findById(objectId).select("countryCode");
     if (!user) return { ok: false as const, error: "Fabhouse account not found." };
     const paymentMarketCode = payment.marketCode ?? user.countryCode;
+    const approvedPrice = getMarketPlanPrice(paymentMarketCode, tier);
     if (
       paymentMarketCode !== user.countryCode ||
-      !getMarket(paymentMarketCode).paidPlans
+      !getMarket(paymentMarketCode).paidPlans ||
+      !approvedPrice ||
+      (payment.amountMinor ?? payment.amountKobo) !== approvedPrice.amount * 100 ||
+      payment.currency !== approvedPrice.currency
     ) {
       return { ok: false as const, error: "Paid plans are not available in this account's market." };
     }

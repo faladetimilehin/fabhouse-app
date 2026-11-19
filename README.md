@@ -49,17 +49,17 @@ Open http://localhost:3000.
 
 ### Seed sample data (optional, for local testing)
 
+Add these values to `.env.local` before running the seed script. Use two different passwords, each at least 12 characters long. The script refuses to run when `NODE_ENV=production`.
+
 ```bash
 npm run seed
 ```
 
 Creates:
-- Admin login: `admin@fabhouse.ng` / `changeme123`
-- Agent login: `agent@fabhouse.ng` / `changeme123`
+- Admin login: `admin@fabhouse.ng` (password from `SEED_ADMIN_PASSWORD`)
+- Agent login: `agent@fabhouse.ng` (password from `SEED_AGENT_PASSWORD`)
 - A few sample listings (one pending, so you can test `/admin`)
 - Two sample inquiries on the first active listing, so you can test `/dashboard/inquiries` and replying
-
-**Change these passwords / remove these accounts before going to production.**
 
 ### Run tests
 
